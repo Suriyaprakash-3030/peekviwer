@@ -138,7 +138,24 @@ button:disabled { opacity: .45; cursor: default; }
 .filters button { border: 0; border-radius: 0; padding: 4px 11px; font-size: .8rem; background: transparent; }
 .filters button + button { border-left: 1px solid var(--line); }
 .filters button[aria-pressed="true"] { background: var(--blue); color: #fff; }
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 330px; overflow-y: auto; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 440px; overflow-y: auto; }
+.pager, .logbar, .evbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: .82rem; color: var(--muted); }
+.pager button, .logbar button, .evbar button { padding: 5px 11px; font-size: .82rem; }
+.pager .info { flex: 1; text-align: center; min-width: 120px; }
+.pager input, .logbar input, .evbar select, .pv-ctl select { font: inherit; font-size: .82rem; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); }
+.pager input { width: 110px; }
+.logbar input { flex: 1; min-width: 160px; }
+/* Playback */
+.player { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+#pv { display: block; width: 100%; height: auto; cursor: default; touch-action: auto; background: #000; }
+.pv-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #9AA5B1; font-size: .9rem; }
+.pv-empty[hidden], [hidden] { display: none !important; }
+#pvSeek { width: 100%; margin: 10px 0 4px; accent-color: var(--blue); }
+.pv-ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .82rem; color: var(--muted); }
+.pv-ctl button { padding: 6px 11px; font-size: .85rem; }
+.pv-ctl .grow { flex: 1; }
+.pv-ctl button.rec { color: var(--bad); }
+.pv-info { font-size: .78rem; color: var(--muted); margin-top: 6px; min-height: 1.2em; }
 .thumb { position: relative; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--panel2); }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb span { position: absolute; right: 3px; bottom: 3px; font-size: .64rem; font-family: var(--mono); background: rgba(0,0,0,.6); color: #fff; padding: 0 4px; border-radius: 3px; }
@@ -202,8 +219,8 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .strip div:nth-child(4) { border-left: 0; } .strip div:nth-child(n+4) { border-top: 1px solid var(--line); } }
 @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .col { display: contents; }
-  .o-live { order: 1; } .o-trends { order: 2; } .o-gallery { order: 3; } .o-events { order: 4; }
-  .o-session { order: 5; } .o-settings { order: 6; } .o-log { order: 7; } }
+  .o-live { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
+  .o-session { order: 6; } .o-settings { order: 7; } .o-log { order: 8; } }
 @media (max-width: 600px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .kpi .value { font-size: 1.6rem; }
@@ -283,15 +300,40 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
         </div>
       </section>
 
+      <section class="card o-play">
+        <h2>Playback <span class="act filters" role="group" aria-label="Playback cameras">
+          <button data-pm="F">Front</button><button data-pm="B">Back</button><button data-pm="FB" aria-pressed="true">F + B</button></span></h2>
+        <div class="player"><canvas id="pv" width="1280" height="480" aria-label="Image playback"></canvas><div class="pv-empty" id="pvEmpty">No images to play yet</div></div>
+        <input type="range" id="pvSeek" min="0" max="0" value="0" step="1" aria-label="Playback position">
+        <div class="pv-ctl">
+          <button id="pvFirst" aria-label="First frame">⏮</button><button id="pvPrev" aria-label="Previous frame">◀</button>
+          <button id="pvPlay" class="primary">▶ Play</button>
+          <button id="pvNext" aria-label="Next frame">▶</button><button id="pvLast" aria-label="Last frame">⏭</button>
+          <label>Speed <select id="pvFps"><option>2</option><option>5</option><option selected>10</option><option>25</option><option>50</option></select> fps</label>
+          <label>Range <select id="pvRange"><option value="all">Whole session</option><option value="chart">Chart range</option></select></label>
+          <span class="grow"></span>
+          <button id="pvRec" class="rec">● Export video</button>
+        </div>
+        <div class="pv-info mono" id="pvInfo"></div>
+      </section>
+
       <section class="card o-gallery">
-        <h2>Gallery <span class="act filters" role="group" aria-label="Camera filter">
-          <button data-g="all" aria-pressed="true">All</button><button data-g="F">Front</button><button data-g="B">Back</button></span></h2>
+        <h2>Gallery <span class="act filters" role="group" aria-label="Gallery filter">
+          <button data-g="all" aria-pressed="true">All</button><button data-g="F">Front</button><button data-g="B">Back</button><button data-g="broken">Broken</button></span></h2>
         <div class="gallery" id="gallery"><div class="empty">Images appear here as they arrive. Tap one to inspect it.</div></div>
+        <div class="pager">
+          <button id="gNewer">‹ Newer</button><span class="info" id="gInfo"></span><button id="gOlder">Older ›</button>
+          <input id="gSeq" type="number" min="0" placeholder="Go to seq" inputmode="numeric" aria-label="Go to sequence number">
+        </div>
       </section>
 
       <section class="card o-events">
         <h2>Events <span class="act muted" id="evCount"></span></h2>
         <ul class="timeline" id="timeline"><li class="empty" style="display:block;border:0">No events yet</li></ul>
+        <div class="evbar">
+          <select id="evLevel" aria-label="Event level"><option value="all">All events</option><option value="warn">Warnings and errors</option><option value="bad">Errors only</option></select>
+          <span class="grow" style="flex:1"></span><button id="evMore" hidden>Show more</button>
+        </div>
       </section>
     </div>
 
@@ -351,9 +393,13 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
         </div>
       </details>
 
-      <details class="card o-log">
-        <summary>Raw log</summary>
-        <div class="body"><pre id="log"></pre></div>
+      <details class="card o-log" id="logBox">
+        <summary>Raw log <span class="muted" id="logCount" style="font-weight:400"></span></summary>
+        <div class="body">
+          <div class="logbar" style="margin:0 0 8px"><input id="logQ" placeholder="Filter, e.g. seq=18026, lost, bad, jpeg=broken" aria-label="Filter log">
+            <button id="logMore">Show more</button><button id="logDl">Download .txt</button></div>
+          <pre id="log"></pre>
+        </div>
       </details>
     </div>
   </div>
@@ -524,7 +570,7 @@ function makeZip(files) {               // files: [{name, data:Uint8Array}]
 </script><script>
 // Optional, proposed firmware feature: nRF notifies its measured connection RSSI (int8 dBm) here.
 const CHAR_RSSI_UUID = "6e400005-b5a3-f393-e0a9-e50e24dcca3e";
-const GALLERY_MAX = 60;
+const GALLERY_PAGE = 120;
 
 const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -539,7 +585,7 @@ function freshState() {
   return { start: null, total: 0, f: 0, b: 0, bad: 0, lost: 0, seqGap: 0,
     countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [],
     frameT: [], frameBytes: [], lastTs: null, lastSeq: null, lastCrc: null, maxChunk: 0,
-    lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0 };
+    lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0, log: [] };
 }
 let S = freshState();
 const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, slipNoted: false };
@@ -558,7 +604,28 @@ function fmtAge(ms) {
   return Math.floor(s / 3600) + "h " + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + "m";
 }
 function kb(n) { return (n / 1024).toFixed(1) + " KB"; }
-function log(msg) { const el = $("log"); el.textContent = `${tClock(Date.now())} ${msg}\n` + el.textContent.slice(0, 40000); }
+// Full log: every line kept in memory (rebuilt from stored frames/events on load); the panel shows newest first.
+const LOGV = { limit: 500, timer: null };
+function log(msg, ts = Date.now()) {
+  if (typeof S === "undefined") return;
+  S.log.push({ ts, text: msg });
+  if (S.log.length > 400000) S.log.splice(0, 50000);
+  scheduleLog();
+}
+function scheduleLog() { if (!LOGV.timer) LOGV.timer = setTimeout(() => { LOGV.timer = null; renderLog(); }, 400); }
+function logLines() {
+  const q = ($("logQ").value || "").trim().toLowerCase();
+  return q ? S.log.filter(l => l.text.toLowerCase().includes(q)) : S.log;
+}
+function renderLog() {
+  $("logCount").textContent = S.log.length ? `· ${S.log.length.toLocaleString()} lines` : "";
+  if (!$("logBox").open) return;
+  const lines = logLines(), shown = Math.min(lines.length, LOGV.limit), out = [];
+  for (let i = lines.length - 1; i >= lines.length - shown; i--) out.push(`${tClock(lines[i].ts)} ${lines[i].text}`);
+  $("log").textContent = out.join("\n") || "No matching lines";
+  $("logMore").hidden = shown >= lines.length;
+  $("logMore").textContent = `Show more (${(lines.length - shown).toLocaleString()} older)`;
+}
 function setPill(state, text) { $("pill").className = "pill " + state; $("pillText").textContent = text; }
 function toast(text) {
   const el = document.createElement("div"); el.className = "toast"; el.textContent = text;
@@ -611,11 +678,10 @@ function note(level, text, ts = Date.now()) {          // live notes are persist
   const ev = { ts, type: "note", level, text };
   put("events", ev); addNote(ev, true); log(`[${level}] ${text}`);
 }
+const EVV = { limit: 200, timer: null };
 function addNote(ev, live) {
   S.notes.push(ev);
-  if (live) { const tl = $("timeline"); tl.querySelector(".empty")?.remove(); tl.prepend(noteLi(ev));
-    while (tl.children.length > 200) tl.lastChild.remove(); }
-  $("evCount").textContent = S.notes.length ? `${S.notes.length} total` : "";
+  if (live && !EVV.timer) EVV.timer = setTimeout(() => { EVV.timer = null; renderTimeline(); }, 300);
 }
 function noteLi(ev) {
   const li = document.createElement("li"); li.className = ev.level;
@@ -623,10 +689,15 @@ function noteLi(ev) {
   li.querySelector("span").textContent = ev.text; return li;
 }
 function renderTimeline() {
-  const tl = $("timeline"); tl.replaceChildren();
-  if (!S.notes.length) { tl.innerHTML = '<li class="empty" style="display:block;border:0">No events yet</li>'; }
-  else for (const ev of S.notes.slice(-200).reverse()) tl.appendChild(noteLi(ev));
-  $("evCount").textContent = S.notes.length ? `${S.notes.length} total` : "";
+  const lv = $("evLevel").value, tl = $("timeline");
+  const list = lv === "bad" ? S.notes.filter(e => e.level === "bad") : lv === "warn" ? S.notes.filter(e => e.level === "bad" || e.level === "warn") : S.notes;
+  const shown = Math.min(list.length, EVV.limit), frag = document.createDocumentFragment();
+  for (let i = list.length - 1; i >= list.length - shown; i--) frag.appendChild(noteLi(list[i]));
+  tl.replaceChildren(frag);
+  if (!list.length) tl.innerHTML = '<li class="empty" style="display:block;border:0">No events yet</li>';
+  $("evCount").textContent = S.notes.length ? `${S.notes.length.toLocaleString()} total` : "";
+  $("evMore").hidden = shown >= list.length;
+  $("evMore").textContent = `Show more (${(list.length - shown).toLocaleString()} older)`;
 }
 
 // ---------------- ingest (live + restore share this) ----------------
@@ -676,11 +747,11 @@ function ingestFrame(rec, live) {
   if (jpeg && label !== "?") {
     const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null, jstatus: status };
     S.imgs.push(img);
-    if (live) { showLive(img); galleryAdd(img); } else lastRestored[label] = img;
+    if (live) { showLive(img); galleryAdd(img); pvOnNew(img); } else lastRestored[label] = img;
   } else if (!jpeg && live) note("warn", `No JPEG markers in frame seq ${seq} (${label}), raw kept`, t);
 
-  if (live) log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} jpeg=${status} ` +
-    `img_doc=${sysd ? sysd.imgCountDocumented : "?"} b25=${sysd ? sysd.imgCountObserved : "?"} batt=${sysd ? sysd.voltageV.toFixed(2) + "V" : "?"}`);
+  log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} jpeg=${status} ` +
+    `batt=${sysd ? sysd.voltageV.toFixed(2) + "V" : "?"}`, t);
 }
 function ingestEvent(ev, live) {
   if (S.start == null) S.start = ev.ts;
@@ -689,7 +760,7 @@ function ingestEvent(ev, live) {
     if (live) note("warn", `Incomplete frame dropped: ${ev.got}/${ev.expected} B received`, ev.ts);
   } else if (ev.type === "rssi") {
     (ev.src === "link" ? S.rssiLink : S.rssiAdv).push([ev.ts, ev.dbm]);
-  } else if (ev.type === "note") addNote(ev, false);
+  } else if (ev.type === "note") { addNote(ev, false); if (!live) S.log.push({ ts: ev.ts, text: `[${ev.level}] ${ev.text}` }); }
 }
 function checkBattery(v, t) {
   const th = SET.batt;
@@ -726,7 +797,10 @@ function showLive(img) {
   el.onclick = () => openLb(img);
   el.src = imgUrl(img);
 }
-function filteredImgs() { return gFilter === "all" ? S.imgs : S.imgs.filter(i => i.label === gFilter); }
+function filteredImgs() {
+  return gFilter === "all" ? S.imgs : gFilter === "broken" ? S.imgs.filter(i => i.jstatus === "broken") : S.imgs.filter(i => i.label === gFilter);
+}
+const G = { page: 0 };
 function thumb(img) {
   const b = document.createElement("button"); b.className = "thumb " + img.label;
   b.setAttribute("aria-label", `${img.label === "F" ? "Front" : "Back"} seq ${img.seq} at ${tClock(img.ts)}`);
@@ -735,17 +809,37 @@ function thumb(img) {
   b.append(im, s);
   if (img.jstatus === "repaired") { const fx = document.createElement("span"); fx.className = "fx"; fx.textContent = "fixed"; fx.title = "Header bit-slip auto-repaired"; b.append(fx); } b.onclick = () => openLb(img); return b;
 }
+function galleryPager(len) {
+  const pages = Math.max(1, Math.ceil(len / GALLERY_PAGE));
+  if (G.page > pages - 1) G.page = pages - 1;
+  $("gInfo").textContent = len ? `${len.toLocaleString()} images · page ${G.page + 1} of ${pages}` : "No images";
+  $("gNewer").disabled = G.page <= 0; $("gOlder").disabled = G.page >= pages - 1;
+}
 function renderGallery() {
   const g = $("gallery"), list = filteredImgs();
-  g.replaceChildren();
-  if (!list.length) { g.innerHTML = '<div class="empty">Images appear here as they arrive. Tap one to inspect it.</div>'; return; }
-  for (const img of list.slice(-GALLERY_MAX).reverse()) g.appendChild(thumb(img));
+  galleryPager(list.length);
+  if (!list.length) { g.innerHTML = `<div class="empty">${gFilter === "broken" ? "No broken images" : "Images appear here as they arrive. Tap one to inspect it."}</div>`; return; }
+  const end = list.length - G.page * GALLERY_PAGE, start = Math.max(0, end - GALLERY_PAGE), frag = document.createDocumentFragment();
+  for (let i = end - 1; i >= start; i--) frag.appendChild(thumb(list[i]));
+  g.replaceChildren(frag); g.scrollTop = 0;
 }
 function galleryAdd(img) {
-  if (gFilter !== "all" && gFilter !== img.label) return;
+  const matches = gFilter === "all" || gFilter === img.label || (gFilter === "broken" && img.jstatus === "broken");
+  if (!matches) return;
+  if (G.page !== 0) { galleryPager(filteredImgs().length); return; }
   const g = $("gallery"); g.querySelector(".empty")?.remove();
-  g.prepend(thumb(img)); while (g.children.length > GALLERY_MAX) g.lastChild.remove();
+  g.prepend(thumb(img)); while (g.children.length > GALLERY_PAGE) g.lastChild.remove();
+  galleryPager(filteredImgs().length);
 }
+$("gNewer").onclick = () => { G.page = Math.max(0, G.page - 1); renderGallery(); };
+$("gOlder").onclick = () => { G.page++; renderGallery(); };
+$("gSeq").addEventListener("change", e => {
+  const v = parseInt(e.target.value, 10); if (!Number.isFinite(v)) return;
+  const list = filteredImgs(); let i = -1;
+  for (let k = list.length - 1; k >= 0; k--) if (list[k].seq === v) { i = k; break; }
+  if (i < 0) { toast(`Seq ${v} not found${gFilter !== "all" ? " in this filter" : ""}`); return; }
+  G.page = Math.floor((list.length - 1 - i) / GALLERY_PAGE); renderGallery(); openLb(list[i]);
+});
 
 // ---------------- lightbox ----------------
 let lbList = [], lbIdx = 0;
@@ -1064,10 +1158,155 @@ q("[data-win]").forEach(btn => btn.addEventListener("click", () => {
   SET.win = btn.dataset.win === "all" ? "all" : Number(btn.dataset.win); saveSettings(); resetZoom();
 }));
 q("[data-g]").forEach(btn => btn.addEventListener("click", () => {
-  q("[data-g]").forEach(b => b.setAttribute("aria-pressed", String(b === btn))); gFilter = btn.dataset.g; renderGallery();
+  q("[data-g]").forEach(b => b.setAttribute("aria-pressed", String(b === btn))); gFilter = btn.dataset.g; G.page = 0; renderGallery();
 }));
 window.addEventListener("resize", scheduleDraw);
 setInterval(() => { renderStats(); scheduleDraw(); }, 1000);
+
+// ---------------- playback + video export ----------------
+// Modes: F (front only), B (back only), FB (side by side; each step = next image of either camera,
+// the other camera holds its latest image). Video export records the canvas in real time (MediaRecorder).
+const P = { mode: "FB", list: [], idx: 0, playing: false, timer: null, cache: new Map(), rec: null, track: null, token: 0 };
+const PANEL_W = 640, PANEL_H = 480;
+function pvSource() {
+  let l = P.mode === "FB" ? S.imgs : S.imgs.filter(i => i.label === P.mode);
+  if ($("pvRange").value === "chart") { const [a, b] = windowRange(); l = l.filter(i => i.ts >= a && i.ts <= b); }
+  return l;
+}
+function pvBuild(pos = "keep") {
+  const curTs = P.list[P.idx]?.ts;
+  P.list = pvSource();
+  if (pos === "end") P.idx = Math.max(0, P.list.length - 1);
+  else if (pos === "start") P.idx = 0;
+  else if (curTs != null) { const k = P.list.findIndex(i => i.ts >= curTs); P.idx = k < 0 ? Math.max(0, P.list.length - 1) : k; }
+  else P.idx = Math.max(0, P.list.length - 1);
+  const cv = $("pv"), w = P.mode === "FB" ? PANEL_W * 2 : PANEL_W;
+  if (cv.width !== w) { cv.width = w; cv.height = PANEL_H; }
+  $("pvSeek").max = Math.max(0, P.list.length - 1); $("pvSeek").value = P.idx;
+  $("pvEmpty").hidden = P.list.length > 0;
+  pvRender();
+}
+async function pvBitmap(img) {
+  if (P.cache.has(img)) { const v = P.cache.get(img); P.cache.delete(img); P.cache.set(img, v); return v; }
+  let bm = null;
+  try { bm = await createImageBitmap(new Blob([img.jpeg], { type: "image/jpeg" })); } catch { bm = null; }
+  P.cache.set(img, bm);
+  while (P.cache.size > 90) { const k = P.cache.keys().next().value, v = P.cache.get(k); if (v && v.close) v.close(); P.cache.delete(k); }
+  return bm;
+}
+function pvLatest(label, idx) {            // latest image of a camera at or before idx (bounded search)
+  for (let i = idx, n = 0; i >= 0 && n < 2000; i--, n++) if (P.list[i].label === label) return P.list[i];
+  return null;
+}
+async function pvPanel(g, x, img, label, active) {
+  g.fillStyle = "#000"; g.fillRect(x, 0, PANEL_W, PANEL_H);
+  if (img) {
+    const bm = await pvBitmap(img);
+    if (bm) { g.imageSmoothingQuality = "high"; g.drawImage(bm, x, 0, PANEL_W, PANEL_H); }
+    else { g.fillStyle = "#9AA5B1"; g.font = "16px system-ui, sans-serif"; g.textAlign = "center"; g.fillText("Image could not be decoded", x + PANEL_W / 2, PANEL_H / 2); }
+  } else { g.fillStyle = "#9AA5B1"; g.font = "16px system-ui, sans-serif"; g.textAlign = "center"; g.fillText(`No ${label === "F" ? "front" : "back"} image yet`, x + PANEL_W / 2, PANEL_H / 2); }
+  g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(x, 0, PANEL_W, 30);
+  g.fillStyle = active ? "#FFFFFF" : "#B8C2CC"; g.font = "600 15px system-ui, sans-serif"; g.textAlign = "left";
+  g.fillText(label === "F" ? "FRONT" : "BACK", x + 12, 20);
+  if (img) { g.font = "14px ui-monospace, Menlo, Consolas, monospace"; g.textAlign = "right";
+    g.fillText(`#${img.seq}  ${new Date(img.ts).toLocaleTimeString([], { hour12: false })}`, x + PANEL_W - 12, 20); }
+  if (active && P.mode === "FB") { g.strokeStyle = "rgba(110,162,232,.9)"; g.lineWidth = 3; g.strokeRect(x + 1.5, 1.5, PANEL_W - 3, PANEL_H - 3); }
+}
+async function pvRender() {
+  const token = ++P.token, cv = $("pv"), g = cv.getContext("2d");
+  if (!P.list.length) { g.fillStyle = "#000"; g.fillRect(0, 0, cv.width, cv.height); $("pvInfo").textContent = ""; return; }
+  const cur = P.list[P.idx];
+  if (P.mode === "FB") {
+    const f = pvLatest("F", P.idx), b = pvLatest("B", P.idx);
+    await Promise.all([pvBitmap(f || cur), pvBitmap(b || cur)]);           // decode first, then draw both at once
+    if (token !== P.token) return;
+    await pvPanel(g, 0, f, "F", cur.label === "F"); await pvPanel(g, PANEL_W, b, "B", cur.label === "B");
+  } else { await pvBitmap(cur); if (token !== P.token) return; await pvPanel(g, 0, cur, cur.label, true); }
+  if (P.track && P.track.requestFrame) P.track.requestFrame();      // recording: exactly one video frame per image
+  $("pvSeek").value = P.idx;
+  $("pvInfo").textContent = `${(P.idx + 1).toLocaleString()} / ${P.list.length.toLocaleString()} · ${cur.label === "F" ? "Front" : "Back"} seq ${cur.seq} · ` +
+    `${new Date(cur.ts).toLocaleString([], { hour12: false })}${P.rec ? " · ● recording, keep this tab visible" : ""}`;
+}
+function pvSetPlaying(on) { P.playing = on; $("pvPlay").textContent = on ? "⏸ Pause" : "▶ Play"; if (!on) clearTimeout(P.timer); }
+async function pvLoop() {
+  if (!P.playing) return;
+  const t0 = performance.now(), fps = Number($("pvFps").value);
+  await pvRender();
+  if (P.idx >= P.list.length - 1) { pvSetPlaying(false); if (P.rec) pvRecStop(); return; }
+  P.idx++;
+  P.timer = setTimeout(pvLoop, Math.max(0, 1000 / fps - (performance.now() - t0)));
+}
+function pvPlay() {
+  if (!P.list.length) return;
+  if (P.idx >= P.list.length - 1) pvBuild("start");
+  pvSetPlaying(true); pvLoop();
+}
+function pvGo(i) { if (P.rec) return; pvSetPlaying(false); P.idx = Math.min(Math.max(0, i), Math.max(0, P.list.length - 1)); pvRender(); }
+function pvOnNew(img) {                       // live frames: follow the newest when parked at the end
+  if (P.rec || $("pvRange").value === "chart" || (P.mode !== "FB" && img.label !== P.mode)) return;
+  const atEnd = P.idx >= P.list.length - 1;
+  P.list.push(img); $("pvSeek").max = P.list.length - 1; $("pvEmpty").hidden = true;
+  if (atEnd && !P.playing) { P.idx = P.list.length - 1; pvRender(); }
+}
+function pvMime() {
+  for (const m of ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"])
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return null;
+}
+function pvRecStart() {
+  const mime = pvMime(), cv = $("pv");
+  if (!mime || !cv.captureStream) { toast("This browser can't record video"); return; }
+  if (!P.list.length) { toast("Nothing to record"); return; }
+  const fps = Number($("pvFps").value), secs = P.list.length / fps;
+  if (secs > 120 && !confirm(`The video is recorded in real time: about ${fmtAge(secs * 1000)} for ${P.list.length.toLocaleString()} images at ${fps} fps.\nKeep this tab visible until it finishes. Continue?`)) return;
+  const chunks = [], first = P.list[0], last = P.list[P.list.length - 1];
+  const stream = cv.captureStream(0), track = stream.getVideoTracks()[0];
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5_000_000 });
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const ext = mime.includes("mp4") ? "mp4" : "webm";
+    download(new Blob(chunks, { type: mime.split(";")[0] }), `peek1_${P.mode === "FB" ? "F+B" : P.mode}_seq${first.seq}-${last.seq}.${ext}`);
+    P.rec = null; P.track = null; track.stop(); $("pvRec").textContent = "● Export video"; toast(`Video saved (${ext.toUpperCase()})`); pvRender();
+  };
+  P.rec = rec; P.track = track; $("pvRec").textContent = "■ Stop and save";
+  P.idx = 0; pvSetPlaying(false);
+  rec.start(1000); pvSetPlaying(true); pvLoop();
+}
+function pvRecStop() {
+  pvSetPlaying(false);
+  const rec = P.rec; if (!rec || rec.state === "inactive" || P.stopping) return;
+  P.stopping = true;                       // hold the last image briefly so the encoder flushes every frame
+  let n = 0; const hold = setInterval(() => { if (P.track && P.track.requestFrame) P.track.requestFrame();
+    if (++n >= 10) { clearInterval(hold); P.stopping = false; rec.stop(); } }, 100);
+}
+$("pvPlay").onclick = () => { if (P.rec) return; P.playing ? pvSetPlaying(false) : pvPlay(); };
+$("pvFirst").onclick = () => pvGo(0); $("pvLast").onclick = () => pvGo(P.list.length - 1);
+$("pvPrev").onclick = () => pvGo(P.idx - 1); $("pvNext").onclick = () => pvGo(P.idx + 1);
+$("pvSeek").addEventListener("input", e => { if (P.rec) { e.target.value = P.idx; return; } P.idx = Number(e.target.value); if (!P.playing) pvRender(); });
+$("pvRange").addEventListener("change", () => { if (!P.rec) { pvSetPlaying(false); pvBuild("start"); } });
+$("pvRec").onclick = () => P.rec ? pvRecStop() : pvRecStart();
+q("[data-pm]").forEach(btn => btn.addEventListener("click", () => {
+  if (P.rec) return;
+  q("[data-pm]").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+  P.mode = btn.dataset.pm; pvBuild("keep");
+}));
+$("pv").addEventListener("click", () => { if (!P.rec) (P.playing ? pvSetPlaying(false) : pvPlay()); });
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input, select, textarea, dialog") || !$("pv").matches(":hover")) return;
+  if (e.key === " ") { e.preventDefault(); $("pvPlay").click(); }
+  else if (e.key === "ArrowLeft") pvGo(P.idx - 1); else if (e.key === "ArrowRight") pvGo(P.idx + 1);
+});
+
+// ---------------- log + events controls ----------------
+$("logBox").addEventListener("toggle", renderLog);
+$("logQ").addEventListener("input", () => { LOGV.limit = 500; scheduleLog(); });
+$("logMore").onclick = () => { LOGV.limit += 2000; renderLog(); };
+$("logDl").onclick = () => {
+  const txt = S.log.map(l => `${new Date(l.ts).toISOString()} ${l.text}`).join("\n") + "\n";
+  download(new Blob([txt], { type: "text/plain" }), `peek1_log_${new Date().toISOString().replace(/[:.]/g, "-")}.txt`);
+};
+$("evLevel").addEventListener("change", () => { EVV.limit = 200; renderTimeline(); });
+$("evMore").onclick = () => { EVV.limit += 500; renderTimeline(); };
 
 // ---------------- theme ----------------
 function applyTheme() {
@@ -1223,7 +1462,8 @@ async function clearSession() {
   mem.frames.length = 0; mem.events.length = 0;
   if (db) { try { const tx = db.transaction(["frames", "events"], "readwrite"); tx.objectStore("frames").clear(); tx.objectStore("events").clear(); } catch { /* ignore */ } }
   const keepChunk = S.maxChunk; resetView(); S.maxChunk = keepChunk;
-  $("storedCount").textContent = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); toast("Session cleared");
+  if (P.rec) pvRecStop(); P.cache.clear(); G.page = 0;
+  $("storedCount").textContent = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); renderLog(); pvBuild("end"); toast("Session cleared");
 }
 
 // ---------------- settings UI ----------------
@@ -1245,7 +1485,7 @@ async function restore() {
   for (const m of merged) m.k === "f" ? ingestFrame(m.r, false) : ingestEvent(m.r, false);
   for (const k of ["F", "B"]) if (lastRestored[k]) showLive(lastRestored[k]);
   $("storedCount").textContent = S.total;
-  renderGallery(); renderTimeline(); renderStats(); scheduleDraw();
+  G.page = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); renderLog(); pvBuild("end");
   return merged.length;
 }
 
