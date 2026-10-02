@@ -509,14 +509,34 @@ function repairHeaderSlip(f) {
   for (let i = SLIP_FIRST_BYTE + 1; i <= SLIP_LAST_BYTE; i++) o[i] = ((f[i - 1] & 1) << 7) | (f[i] >> 1);
   return o;
 }
-// Returns {jpeg, status}: "ok" | "repaired" | "broken" (header invalid, unrepairable) | "none" (no SOI/EOI)
+// Stage 2: the camera always emits the same JPEG header (identical in every captured frame), so a
+// header that is still invalid after the slip fix but differs from this reference by only a few bits
+// (e.g. 15005_F: APP0 length 0x18 instead of 0x10) is replaced by the reference. Never applied when
+// the SOF segment (image size, sampling) differs, or when more than REF_MAX_BITS bits differ.
+const REF_HDR = (() => { const s = "FFD8FFE000104A46494600010101004800480000FFDB0043001B12141714111B1716171E1C1B2028422B28252528513A3D3042605565645F555D5B6A7899816A7190735B5D85B586909EA3ABADAB6780BCC9BAA6C799A8ABA4FFDB0043011C1E1E2823284E2B2B4EA46E5D6EA4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4FFC000110800F0014003012200021101031101FFC4001F0000010501010101010100000000000000000102030405060708090A0BFFC400B5100002010303020403050504040000017D01020300041105122131410613516107227114328191A1082342B1C11552D1F02433627282090A161718191A25262728292A3435363738393A434445464748494A535455565758595A636465666768696A737475767778797A838485868788898A92939495969798999AA2A3A4A5A6A7A8A9AAB2B3B4B5B6B7B8B9BAC2C3C4C5C6C7C8C9CAD2D3D4D5D6D7D8D9DAE1E2E3E4E5E6E7E8E9EAF1F2F3F4F5F6F7F8F9FAFFC4001F0100030101010101010101010000000000000102030405060708090A0BFFC400B51100020102040403040705040400010277000102031104052131061241510761711322328108144291A1B1C109233352F0156272D10A162434E125F11718191A262728292A35363738393A434445464748494A535455565758595A636465666768696A737475767778797A82838485868788898A92939495969798999AA2A3A4A5A6A7A8A9AAB2B3B4B5B6B7B8B9BAC2C3C4C5C6C7C8C9CAD2D3D4D5D6D7D8D9DAE2E3E4E5E6E7E8E9EAF2F3F4F5F6F7F8F9FAFFDA000C03010002110311003F00"; const u = new Uint8Array(s.length / 2);
+  for (let i = 0; i < u.length; i++) u[i] = parseInt(s.substr(i * 2, 2), 16); return u; })();
+const REF_SOF = 158, REF_SOF_LEN = 19, REF_MAX_BITS = 8;
+function refHeaderFix(j) {
+  if (!j || j.length <= REF_HDR.length) return null;
+  let bits = 0;
+  for (let i = 0; i < REF_HDR.length; i++) {
+    const x = j[i] ^ REF_HDR[i]; if (!x) continue;
+    if (i >= REF_SOF && i < REF_SOF + REF_SOF_LEN) return null;
+    for (let v = x; v; v &= v - 1) bits++;
+    if (bits > REF_MAX_BITS) return null;
+  }
+  const out = j.slice(); out.set(REF_HDR, 0); return { jpeg: out, bits };
+}
+// Returns {jpeg, status, fix}: status "ok" | "repaired" | "broken" | "none"; fix = "slip" | "slip+ref" | "ref"
 function getJpeg(frame, allowRepair = true) {
   const raw = extractJpeg(frame);
   if (!raw) return { jpeg: null, status: "none" };
   if (jpegHeaderValid(raw)) return { jpeg: raw, status: "ok" };
   if (allowRepair) {
     const fixed = repairHeaderSlip(frame), j2 = fixed && extractJpeg(fixed);
-    if (j2 && jpegHeaderValid(j2)) return { jpeg: j2, status: "repaired" };
+    if (j2 && jpegHeaderValid(j2)) return { jpeg: j2, status: "repaired", fix: "slip" };
+    const r2 = refHeaderFix(j2); if (r2 && jpegHeaderValid(r2.jpeg)) return { jpeg: r2.jpeg, status: "repaired", fix: "slip+ref", bits: r2.bits };
+    const r1 = refHeaderFix(raw); if (r1 && jpegHeaderValid(r1.jpeg)) return { jpeg: r1.jpeg, status: "repaired", fix: "ref", bits: r1.bits };
   }
   return { jpeg: raw, status: "broken" };
 }
@@ -756,7 +776,9 @@ function ingestFrame(rec, live) {
   else { S.bad++; if (live) note("bad", `Unknown camera id 0x${camId.toString(16)} (seq ${seq})`, t); }
   if (sysd) { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }
 
-  const { jpeg, status } = getJpeg(frame, SET.repair);
+  const { jpeg, status, fix, bits } = getJpeg(frame, SET.repair);
+  if (fix && fix !== "slip") { S.refFixed = (S.refFixed || 0) + 1;
+    if (live) note("warn", `Seq ${seq} (${label}): ${bits} extra header bit error(s) beyond the known slip, header restored from reference`, t); }
   if (status === "repaired") {
     S.repaired++;
     if (live && !R.slipNoted) { R.slipNoted = true; note("warn", `JPEG header bit-slip detected and auto-repaired (seq ${seq}). Firmware issue; further repairs are counted, not logged.`, t); }
@@ -765,12 +787,12 @@ function ingestFrame(rec, live) {
     if (live) note("bad", `JPEG header invalid and not repairable (seq ${seq}, ${label})`, t);
   }
   if (jpeg && label !== "?") {
-    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null, jstatus: status };
+    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null, jstatus: status, jfix: fix };
     S.imgs.push(img);
     if (live) { showLive(img); galleryAdd(img); pvOnNew(img); } else lastRestored[label] = img;
   } else if (!jpeg && live) note("warn", `No JPEG markers in frame seq ${seq} (${label}), raw kept`, t);
 
-  log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} jpeg=${status} ` +
+  log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} jpeg=${status}${fix ? "(" + fix + ")" : ""} ` +
     `batt=${sysd ? sysd.voltageV.toFixed(2) + "V" : "?"}`, t);
 }
 function ingestEvent(ev, live) {
@@ -870,7 +892,7 @@ function renderLb() {
   const d = new Date(img.ts);
   $("lbMeta").innerHTML = "";
   const items = [["Camera", img.label === "F" ? "Front" : "Back"], ["Seq", img.seq], ["Time", d.toLocaleDateString() + " " + tClock(img.ts)],
-    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? " (header repaired)" : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"],
+    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? ` (header repaired: ${img.jfix})` : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"],
     ["", `${lbIdx + 1} / ${lbList.length}`]];
   for (const [k, v] of items) { const s = document.createElement("span"); s.innerHTML = k ? `${k} <b></b>` : "<b></b>"; s.querySelector("b").textContent = v; $("lbMeta").appendChild(s); }
   $("lbPrev").disabled = lbIdx <= 0; $("lbNext").disabled = lbIdx >= lbList.length - 1;
@@ -1461,7 +1483,7 @@ async function exportZip() {
     `Session start: ${S.start ? new Date(S.start).toISOString() : "-"}`, `Session length: ${S.start ? fmtAge(nowT() - S.start) : "-"}`,
     `Source: ${OFF.active ? "offline file " + OFF.names + " (times estimated from seq × " + SET.offInt + " s)" : "live BLE"}`, "",
     `Frames received: ${S.total} (front ${S.f}, back ${S.b}, bad ${S.bad})`,
-    `JPEG header bit-slip: ${SET.repair ? `${S.repaired} repaired, ${S.broken} unrepairable` : `auto-repair off, ${S.broken} invalid`} (raw .hex files are unmodified)`,
+    `JPEG header bit-slip: ${SET.repair ? `${S.repaired} repaired (${S.refFixed || 0} also needed reference header), ${S.broken} unrepairable` : `auto-repair off, ${S.broken} invalid`} (raw .hex files are unmodified)`,
     `Incomplete frames (BLE loss): ${S.lost}`, `Delivery: ${att ? ((S.total / att) * 100).toFixed(2) + "%" : "-"}`,
     `Sequence gaps (mode "${SET.seq}"): ${SET.seq === "off" ? "not checked" : S.seqGap}`,
     `Battery: ${S.batt.length ? `last ${S.batt[S.batt.length - 1][1].toFixed(2)} V, min ${Math.min(...S.batt.map(p => p[1])).toFixed(2)} V, max ${Math.max(...S.batt.map(p => p[1])).toFixed(2)} V` : "-"}`,
