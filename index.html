@@ -144,6 +144,7 @@ button:disabled { opacity: .45; cursor: default; }
 .thumb span { position: absolute; right: 3px; bottom: 3px; font-size: .64rem; font-family: var(--mono); background: rgba(0,0,0,.6); color: #fff; padding: 0 4px; border-radius: 3px; }
 .thumb::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .thumb.F::before { background: var(--blue); } .thumb.B::before { background: var(--violet); }
+.thumb .fx { left: 6px; right: auto; top: 3px; bottom: auto; background: var(--warn); color: #fff; font-family: inherit; font-weight: 600; }
 .empty { color: var(--muted); font-size: .86rem; padding: 18px 4px; text-align: center; }
 
 /* Timeline */
@@ -164,7 +165,11 @@ button:disabled { opacity: .45; cursor: default; }
 .legend i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 4px; }
 .legend i.dash { border-top-style: dashed; }
 .legend i.blk { width: 8px; height: 8px; border: 0; border-radius: 2px; vertical-align: 0; }
-canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; }
+canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor: crosshair; }
+.zoombar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 2px 0 4px; font-size: .78rem; color: var(--muted); }
+.zoombar button { padding: 3px 10px; font-size: .8rem; }
+.zoombar .zl { flex: 1; min-width: 160px; }
+.zoombar.on .zl { color: var(--blue); font-weight: 500; }
 
 /* Tools / settings / log */
 .tools { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -233,12 +238,12 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
     <div class="card kpi" id="kImages"><div class="accent"></div>
       <div class="label">Images received</div>
       <div class="value" id="cT">0</div>
-      <div class="sub"><span>Front <b class="f" id="cF">0</b></span><span>Back <b class="b" id="cB">0</b></span><span>Bad <b id="cBad">0</b></span></div>
+      <div class="sub"><span>Front <b class="f" id="cF">0</b></span><span>Back <b class="b" id="cB">0</b></span><span>Bad <b id="cBad">0</b></span><span title="JPEG header bit-slip auto-repaired">Repaired <b id="cRep">0</b></span></div>
     </div>
     <div class="card kpi" id="kLink"><div class="accent"></div>
       <div class="label">Delivery</div>
       <div class="value" id="kDelivery">–</div>
-      <div class="sub"><span>Lost BLE <b id="cLost">0</b></span><span title="Missing sequence numbers between received frames">Seq gaps <b id="cGap">0</b></span></div>
+      <div class="sub"><span>Lost BLE <b id="cLost">0</b></span><span title="Missing sequence numbers between received frames">Seq gaps <b id="cGap">0</b></span><span title="Received ÷ (received + seq gaps)">By seq <b id="cBySeq">–</b></span></div>
     </div>
     <div class="card kpi" id="kBatt"><div class="accent"></div>
       <div class="label">Battery</div>
@@ -259,7 +264,7 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
 
   <section class="strip" aria-label="Link details">
     <div><b id="sAge">–</b><span>Since last frame</span></div>
-    <div><b class="mono" id="sSeq">–</b><span>Last seq · CRC16</span></div>
+    <div><b class="mono" id="sSeq">–</b><span>Seq range (first → last)</span></div>
     <div><b id="sChunk">–</b><span>Max chunk (MTU ≥)</span></div>
     <div><b id="sUptime">–</b><span>Connected time</span></div>
     <div><b id="sReconn">0</b><span>Reconnects</span></div>
@@ -298,6 +303,12 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
             <button data-win="300000">5 min</button><button data-win="1800000" aria-pressed="true">30 min</button><button data-win="7200000">2 h</button><button data-win="all">All</button>
           </div>
         </div>
+        <div class="zoombar" id="zoombar">
+          <button id="zOut" aria-label="Zoom out">−</button><button id="zIn" aria-label="Zoom in">+</button>
+          <button id="zLeft" aria-label="Pan earlier">‹</button><button id="zRight" aria-label="Pan later">›</button>
+          <span class="zl" id="zLabel">Live · scroll, drag a range, or pinch on a chart to zoom</span>
+          <button id="zReset" hidden>Back to live</button>
+        </div>
         <div class="chart">
           <div class="chart-title"><span>Image count</span><span class="readout" id="roCount"></span></div>
           <div class="legend"><span><i style="border-color:var(--blue)"></i>Front</span><span><i class="dash" style="border-color:var(--violet)"></i>Back</span><span><i class="blk" style="background:var(--warn)"></i>Lost frame</span><span><i class="blk" style="background:var(--bad)"></i>Seq gap</span></div>
@@ -333,6 +344,8 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
           <input id="setBatt" type="number" step="0.01" min="0" max="6" placeholder="off" inputmode="decimal">
           <label for="setSeq">Sequence numbering<small>How the firmware increments seq. Used for gap detection.</small></label>
           <select id="setSeq"><option value="frame">+1 per frame</option><option value="cam">+1 per camera</option><option value="off">Don't check</option></select>
+          <label for="setRepair">Auto-repair JPEG header<small>Fixes the known firmware bit-slip. Raw .hex stays unmodified. Turn off to see raw images.</small></label>
+          <select id="setRepair"><option value="on">On</option><option value="off">Off</option></select>
           <label for="setStale">Stale-link warning<small>Warn when no frame arrives for this many seconds while connected.</small></label>
           <input id="setStale" type="number" step="1" min="0" placeholder="off" inputmode="numeric">
         </div>
@@ -407,6 +420,46 @@ function extractJpeg(f) {              // search SOI/EOI instead of hardcoding o
   return f.slice(soi, eoi + 2);
 }
 
+// ---- JPEG header validation + known bit-slip repair ----
+// Observed on every PEEK1 frame so far (both cameras): one bit missing at frame bit 248
+// (byte 31, right after FF D8 FF E0) and one extra bit at frame bit 2039 (byte 254, bit 7).
+// Repair = insert a 0 bit at 248 and drop bit 2039. Only bytes 31..254 change.
+const SLIP_FIRST_BYTE = 31, SLIP_LAST_BYTE = 254;
+function jpegHeaderValid(j) {            // walk segments SOI..SOS; DHT symbol counts must match length
+  if (!j || j.length < 4 || j[0] !== 0xFF || j[1] !== 0xD8) return false;
+  let p = 2;
+  while (p + 4 <= j.length) {
+    if (j[p] !== 0xFF) return false;
+    const m = j[p + 1], ln = (j[p + 2] << 8) | j[p + 3];
+    if (ln < 2 || p + 2 + ln > j.length) return false;
+    if (m === 0xC4) {
+      let n = 0; for (let i = 1; i <= 16; i++) n += j[p + 4 + i];
+      if (n !== ln - 2 - 17) return false;
+    }
+    if (m === 0xDA) return true;
+    p += 2 + ln;
+  }
+  return false;
+}
+function repairHeaderSlip(f) {
+  if (f.length <= SLIP_LAST_BYTE + 1) return null;
+  const o = f.slice();
+  o[SLIP_FIRST_BYTE] = f[SLIP_FIRST_BYTE] >> 1;
+  for (let i = SLIP_FIRST_BYTE + 1; i <= SLIP_LAST_BYTE; i++) o[i] = ((f[i - 1] & 1) << 7) | (f[i] >> 1);
+  return o;
+}
+// Returns {jpeg, status}: "ok" | "repaired" | "broken" (header invalid, unrepairable) | "none" (no SOI/EOI)
+function getJpeg(frame, allowRepair = true) {
+  const raw = extractJpeg(frame);
+  if (!raw) return { jpeg: null, status: "none" };
+  if (jpegHeaderValid(raw)) return { jpeg: raw, status: "ok" };
+  if (allowRepair) {
+    const fixed = repairHeaderSlip(frame), j2 = fixed && extractJpeg(fixed);
+    if (j2 && jpegHeaderValid(j2)) return { jpeg: j2, status: "repaired" };
+  }
+  return { jpeg: raw, status: "broken" };
+}
+
 class FrameAssembler {
   constructor(onComplete, onDropped, log) {
     this.totalLen = null; this.buf = []; this.bufLen = 0;
@@ -477,7 +530,7 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: null, seq: "frame", stale: null, theme: "auto", win: 1800000 };
+const SET = { batt: null, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
 
@@ -486,10 +539,10 @@ function freshState() {
   return { start: null, total: 0, f: 0, b: 0, bad: 0, lost: 0, seqGap: 0,
     countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [],
     frameT: [], frameBytes: [], lastTs: null, lastSeq: null, lastCrc: null, maxChunk: 0,
-    lastSeqBy: {}, imgs: [], notes: [] };
+    lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0 };
 }
 let S = freshState();
-const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false };
+const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, slipNoted: false };
 let device = null, manualDisconnect = false, connecting = false, reconnectTimer = null;
 let advAbort = null, lastAdvStore = 0, wakeLock = null, gFilter = "all";
 let lastRestored = {};
@@ -590,6 +643,7 @@ function ingestFrame(rec, live) {
   const crc = crc16ccitt(frame);
   const sysd = parseSystemData(frame);
   S.lastSeq = seq; S.lastCrc = crc;
+  if (seq != null && S.seqFirst == null && label !== "?") S.seqFirst = seq;
 
   if (seq != null && SET.seq !== "off" && label !== "?") {
     const key = SET.seq === "cam" ? label : "all";
@@ -605,19 +659,27 @@ function ingestFrame(rec, live) {
     S.lastSeqBy[key] = seq;
   }
 
+  if (label === "F" || label === "B") S.fb++;
   if (label === "F") { S.f++; S.countF.push([t, S.f]); }
   else if (label === "B") { S.b++; S.countB.push([t, S.b]); }
   else { S.bad++; if (live) note("bad", `Unknown camera id 0x${camId.toString(16)} (seq ${seq})`, t); }
   if (sysd) { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }
 
-  const jpeg = rec.jpeg ? new Uint8Array(rec.jpeg) : null;
+  const { jpeg, status } = getJpeg(frame, SET.repair);
+  if (status === "repaired") {
+    S.repaired++;
+    if (live && !R.slipNoted) { R.slipNoted = true; note("warn", `JPEG header bit-slip detected and auto-repaired (seq ${seq}). Firmware issue; further repairs are counted, not logged.`, t); }
+  } else if (status === "broken") {
+    S.broken++;
+    if (live) note("bad", `JPEG header invalid and not repairable (seq ${seq}, ${label})`, t);
+  }
   if (jpeg && label !== "?") {
-    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null };
+    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null, jstatus: status };
     S.imgs.push(img);
     if (live) { showLive(img); galleryAdd(img); } else lastRestored[label] = img;
   } else if (!jpeg && live) note("warn", `No JPEG markers in frame seq ${seq} (${label}), raw kept`, t);
 
-  if (live) log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} ` +
+  if (live) log(`[frame] cam=${label} seq=${seq} bytes=${frame.length} crc=${hex4(crc)} jpeg=${status} ` +
     `img_doc=${sysd ? sysd.imgCountDocumented : "?"} b25=${sysd ? sysd.imgCountObserved : "?"} batt=${sysd ? sysd.voltageV.toFixed(2) + "V" : "?"}`);
 }
 function ingestEvent(ev, live) {
@@ -637,7 +699,7 @@ function checkBattery(v, t) {
 }
 
 function onLiveFrame(frame) {
-  const rec = { ts: Date.now(), frame, jpeg: extractJpeg(frame) };
+  const rec = { ts: Date.now(), frame };
   if (frame.length >= 26) rec.seq = (frame[24] << 8) | frame[25];
   put("frames", rec); ingestFrame(rec, true);
   $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
@@ -655,7 +717,7 @@ function showLive(img) {
   const box = $(img.label === "F" ? "boxF" : "boxB");
   const el = new Image(); el.alt = `${img.label === "F" ? "Front" : "Back"} camera, seq ${img.seq}`;
   el.onload = () => {
-    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = `#${img.seq}`;
+    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = `#${img.seq}${img.jstatus === "repaired" ? " · fixed" : ""}`;
     box.replaceChildren(el, tag);
     $(img.label === "F" ? "fMeta" : "bMeta").textContent = `${tClock(img.ts)} · ${kb(img.jpeg.length)}`;
     const shot = $(img.label === "F" ? "shotF" : "shotB"); shot.classList.remove("flash"); void shot.offsetWidth; shot.classList.add("flash");
@@ -670,7 +732,8 @@ function thumb(img) {
   b.setAttribute("aria-label", `${img.label === "F" ? "Front" : "Back"} seq ${img.seq} at ${tClock(img.ts)}`);
   const im = document.createElement("img"); im.loading = "lazy"; im.alt = ""; im.src = imgUrl(img);
   const s = document.createElement("span"); s.textContent = img.seq;
-  b.append(im, s); b.onclick = () => openLb(img); return b;
+  b.append(im, s);
+  if (img.jstatus === "repaired") { const fx = document.createElement("span"); fx.className = "fx"; fx.textContent = "fixed"; fx.title = "Header bit-slip auto-repaired"; b.append(fx); } b.onclick = () => openLb(img); return b;
 }
 function renderGallery() {
   const g = $("gallery"), list = filteredImgs();
@@ -693,7 +756,7 @@ function renderLb() {
   const d = new Date(img.ts);
   $("lbMeta").innerHTML = "";
   const items = [["Camera", img.label === "F" ? "Front" : "Back"], ["Seq", img.seq], ["Time", d.toLocaleDateString() + " " + tClock(img.ts)],
-    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length)], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"],
+    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? " (header repaired)" : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"],
     ["", `${lbIdx + 1} / ${lbList.length}`]];
   for (const [k, v] of items) { const s = document.createElement("span"); s.innerHTML = k ? `${k} <b></b>` : "<b></b>"; s.querySelector("b").textContent = v; $("lbMeta").appendChild(s); }
   $("lbPrev").disabled = lbIdx <= 0; $("lbNext").disabled = lbIdx >= lbList.length - 1;
@@ -705,7 +768,7 @@ function download(blob, name) {
 }
 $("lbPrev").onclick = () => lbStep(-1); $("lbNext").onclick = () => lbStep(1);
 $("lbClose").onclick = () => $("lb").close();
-$("lbDl").onclick = () => { const i = lbList[lbIdx]; download(new Blob([i.jpeg], { type: "image/jpeg" }), `${i.seq}_${i.label}.jpg`); };
+$("lbDl").onclick = () => { const i = lbList[lbIdx]; download(new Blob([i.jpeg], { type: "image/jpeg" }), `${i.seq}_${i.label}${i.jstatus === "repaired" ? "_repaired" : ""}.jpg`); };
 $("lbHex").onclick = () => { const i = lbList[lbIdx]; download(new Blob([frameToHexText(i.frame)], { type: "text/plain" }), `${i.seq}_${i.label}.hex`); };
 $("lb").addEventListener("keydown", e => { if (e.key === "ArrowLeft") lbStep(-1); if (e.key === "ArrowRight") lbStep(1); });
 $("lb").addEventListener("click", e => { if (e.target === $("lb")) $("lb").close(); });
@@ -719,8 +782,8 @@ function rssiQuality(d) { return d >= -60 ? 4 : d >= -70 ? 3 : d >= -80 ? 2 : 1;
 function renderStats() {
   const now = Date.now();
   $("cT").textContent = S.total; $("cF").textContent = S.f; $("cB").textContent = S.b;
-  $("cBad").textContent = S.bad; $("cLost").textContent = S.lost; $("cGap").textContent = SET.seq === "off" ? "off" : S.seqGap;
-  setKpi("kImages", S.total ? (S.bad ? "warn" : "ok") : null);
+  $("cBad").textContent = S.bad + S.broken; $("cRep").textContent = SET.repair ? S.repaired : "off"; $("cLost").textContent = S.lost; $("cGap").textContent = SET.seq === "off" ? "off" : S.seqGap;
+  setKpi("kImages", S.total ? (S.bad || S.broken ? "bad" : S.repaired ? "warn" : "ok") : null);
 
   const att = S.total + S.lost;
   if (att) { const p = (S.total / att) * 100; $("kDelivery").innerHTML = `${p >= 99.95 ? "100" : p.toFixed(1)}<small>%</small>`;
@@ -755,7 +818,9 @@ function renderStats() {
   setKpi("kRate", null);
 
   $("sAge").textContent = S.lastTs ? fmtAge(now - S.lastTs) : "–";
-  $("sSeq").textContent = S.lastSeq == null ? "–" : `${S.lastSeq} · ${hex4(S.lastCrc)}`;
+  $("sSeq").textContent = S.lastSeq == null ? "–" : `${S.seqFirst ?? "?"} → ${S.lastSeq}`;
+  $("sSeq").title = S.lastSeq == null ? "" : `Last frame CRC16 ${hex4(S.lastCrc)}`;
+  $("cBySeq").textContent = SET.seq === "off" || !S.fb ? "–" : ((S.fb / (S.fb + S.seqGap)) * 100).toFixed(1) + "%";
   $("sChunk").textContent = S.maxChunk ? `${S.maxChunk} B (${S.maxChunk + 3})` : "–";
   $("sUptime").textContent = fmtAge(R.connectedMs + (R.connectedSince ? now - R.connectedSince : 0));
   $("sReconn").textContent = R.reconnects;
@@ -784,7 +849,31 @@ function valueAt(pts, t, step) {
   if (step) { let v = null; for (const p of pts) { if (p[0] <= t) v = p; else break; } return v; }
   let best = pts[0]; for (const p of pts) if (Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p; return best;
 }
-function windowRange() { const now = Date.now(); return [SET.win === "all" ? Math.min(S.start ?? now, now - 60000) : now - SET.win, now]; }
+const VIEW = { zoom: null };        // null = live window; else [t0, t1] frozen range shared by all charts
+let BRUSH = null;                   // {id, a, b} while dragging a zoom range with the mouse
+const MIN_SPAN = 10000;
+function fullRange() { const now = Date.now(); return [Math.min(S.start ?? now, now - 60000), now]; }
+function liveRange() { const now = Date.now(); return [SET.win === "all" ? fullRange()[0] : now - SET.win, now]; }
+function windowRange() { return VIEW.zoom ? VIEW.zoom : liveRange(); }
+function setZoom(t0, t1) {
+  const [f0, f1] = fullRange();
+  let span = Math.max(MIN_SPAN, t1 - t0);
+  if (span >= f1 - f0) { resetZoom(); return; }
+  if (t0 < f0) t0 = f0; if (t0 + span > f1) t0 = f1 - span;
+  VIEW.zoom = [t0, t0 + span]; updateZoomBar(); scheduleDraw();
+}
+function zoomBy(factor, tc) {
+  const [t0, t1] = windowRange(); tc = tc ?? (t0 + t1) / 2;
+  setZoom(tc - (tc - t0) * factor, tc + (t1 - tc) * factor);
+}
+function panBy(frac) { const [t0, t1] = windowRange(), d = (t1 - t0) * frac; setZoom(t0 + d, t1 + d); }
+function resetZoom() { VIEW.zoom = null; updateZoomBar(); scheduleDraw(); }
+function updateZoomBar() {
+  const on = !!VIEW.zoom, z = $("zoombar");
+  z.classList.toggle("on", on); $("zReset").hidden = !on;
+  if (on) { const [a, b] = VIEW.zoom; $("zLabel").textContent = `Zoomed ${tClock(a)} – ${tClock(b)} (${fmtAge(b - a)}) · paused, double-click to return`; }
+  else $("zLabel").textContent = "Live · scroll, drag a range, or pinch on a chart to zoom";
+}
 function rateBins() {
   const [t0, t1] = windowRange();
   const bin = Math.max(60000, Math.ceil((t1 - t0) / 60 / 60000) * 60000);
@@ -804,9 +893,9 @@ function drawChart(cv, o) {
   g.font = "11px 'IBM Plex Sans', system-ui, sans-serif";
   const [t0, t1] = windowRange();
   const series = o.series || [];
-  const vis = series.map(s => s.pts.filter(p => p[0] >= t0));
+  const vis = series.map(s => s.pts.filter(p => p[0] >= t0 && p[0] <= t1));
   series.forEach((s, i) => { if (s.step) { const prev = valueAt(s.pts, t0, true); if (prev && prev[0] < t0) vis[i].unshift([t0, prev[1]]); } });
-  const barPts = o.bars ? o.bars.pts.filter(p => p[0] + o.bars.bin > t0) : [];
+  const barPts = o.bars ? o.bars.pts.filter(p => p[0] + o.bars.bin > t0 && p[0] < t1) : [];
   const all = vis.flat().concat(barPts);
   const R_ = 8, T = 8, B = 20, ph = H - T - B;
   let L = 40, pw = W - L - R_;
@@ -862,6 +951,10 @@ function drawChart(cv, o) {
     g.stroke(); g.setLineDash([]);
     if (s.dots && pts.length <= 120) { g.fillStyle = cssVar(s.color); for (const p of pts) { g.beginPath(); g.arc(X(p[0]), Y(p[1]), 2.2, 0, Math.PI * 2); g.fill(); } }
   });
+  if (BRUSH && BRUSH.id === cv.id) {
+    const xa = X(Math.min(BRUSH.a, BRUSH.b)), xb = X(Math.max(BRUSH.a, BRUSH.b));
+    g.fillStyle = cssVar("--blue"); g.globalAlpha = .15; g.fillRect(xa, T, xb - xa, ph); g.globalAlpha = 1;
+  }
   g.restore();
   const ht = hover[cv.id];
   if (ht != null && ht >= t0) {
@@ -908,17 +1001,67 @@ function scheduleDraw() {
     for (const id in CHARTS) { const c = CHARTS[id]; drawChart($(id), c.o()); $(c.ro).textContent = hover[id] != null ? c.read(hover[id]) : c.now(); }
   });
 }
+// Chart interactions (all charts share one time range):
+//  mouse: hover = read values · wheel = zoom at cursor · drag = select a range to zoom · double-click = back to live
+//  touch: one finger = read values · two fingers = pinch to zoom and pan
+//  keyboard (chart focused): + / − zoom, ← / → pan, Esc back to live
 for (const id in CHARTS) {
-  const cv = $(id);
-  const set = e => { const m = cv._map; if (!m) return; const r = cv.getBoundingClientRect();
-    const x = Math.min(Math.max(e.clientX - r.left, m.L), m.L + m.pw); hover[id] = m.t0 + ((x - m.L) / m.pw) * (m.t1 - m.t0); scheduleDraw(); };
-  cv.addEventListener("pointerdown", set); cv.addEventListener("pointermove", set);
-  const clr = () => { delete hover[id]; scheduleDraw(); };
-  cv.addEventListener("pointerleave", clr); cv.addEventListener("pointercancel", clr); cv.addEventListener("blur", clr);
+  const cv = $(id), pts = new Map(); let pinch = null;
+  const tAt = clientX => { const m = cv._map; if (!m) return null; const r = cv.getBoundingClientRect();
+    const x = Math.min(Math.max(clientX - r.left, m.L), m.L + m.pw); return m.t0 + ((x - m.L) / m.pw) * (m.t1 - m.t0); };
+  const pxPerMs = () => { const m = cv._map; return m ? m.pw / (m.t1 - m.t0) : 0; };
+  cv.addEventListener("pointerdown", e => {
+    pts.set(e.pointerId, e.clientX);
+    if (pts.size === 2) {                                  // start pinch
+      const [x1, x2] = [...pts.values()]; delete hover[id];
+      pinch = { d0: Math.abs(x2 - x1) || 1, mid0: (x1 + x2) / 2, range0: windowRange().slice(), tMid: tAt((x1 + x2) / 2) };
+      BRUSH = null; return;
+    }
+    const t = tAt(e.clientX); if (t == null) return;
+    hover[id] = t;
+    if (e.pointerType === "mouse" && e.button === 0) { BRUSH = { id, a: t, b: t, x0: e.clientX }; cv.setPointerCapture(e.pointerId); }
+    scheduleDraw();
+  });
+  cv.addEventListener("pointermove", e => {
+    if (pts.has(e.pointerId)) pts.set(e.pointerId, e.clientX);
+    if (pinch && pts.size === 2) {
+      const [x1, x2] = [...pts.values()], d = Math.abs(x2 - x1) || 1, mid = (x1 + x2) / 2;
+      const [a0, b0] = pinch.range0, span = (b0 - a0) * (pinch.d0 / d);
+      const frac = (pinch.tMid - a0) / (b0 - a0), shift = (mid - pinch.mid0) / (pxPerMs() || 1);
+      const c = pinch.tMid - shift; setZoom(c - span * frac, c + span * (1 - frac)); return;
+    }
+    const t = tAt(e.clientX); if (t == null) return;
+    hover[id] = t;
+    if (BRUSH && BRUSH.id === id) BRUSH.b = t;
+    scheduleDraw();
+  });
+  const end = e => {
+    pts.delete(e.pointerId);
+    if (pinch && pts.size < 2) { pinch = null; return; }
+    if (BRUSH && BRUSH.id === id) {
+      const b = BRUSH; BRUSH = null;
+      if (Math.abs(e.clientX - b.x0) > 8) setZoom(Math.min(b.a, b.b), Math.max(b.a, b.b)); else scheduleDraw();
+    }
+  };
+  cv.addEventListener("pointerup", end);
+  cv.addEventListener("pointercancel", e => { end(e); delete hover[id]; scheduleDraw(); });
+  cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !BRUSH) { delete hover[id]; scheduleDraw(); } });
+  cv.addEventListener("blur", () => { delete hover[id]; scheduleDraw(); });
+  cv.addEventListener("wheel", e => { if (!cv._map) return; e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tAt(e.clientX)); }, { passive: false });
+  cv.addEventListener("dblclick", resetZoom);
+  cv.addEventListener("keydown", e => {
+    if (e.key === "+" || e.key === "=") zoomBy(0.8); else if (e.key === "-") zoomBy(1.25);
+    else if (e.key === "ArrowLeft") panBy(-0.2); else if (e.key === "ArrowRight") panBy(0.2);
+    else if (e.key === "Escape") resetZoom(); else return;
+    e.preventDefault();
+  });
 }
+$("zIn").onclick = () => zoomBy(0.5); $("zOut").onclick = () => zoomBy(2);
+$("zLeft").onclick = () => panBy(-0.25); $("zRight").onclick = () => panBy(0.25);
+$("zReset").onclick = resetZoom;
 q("[data-win]").forEach(btn => btn.addEventListener("click", () => {
   q("[data-win]").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
-  SET.win = btn.dataset.win === "all" ? "all" : Number(btn.dataset.win); saveSettings(); scheduleDraw();
+  SET.win = btn.dataset.win === "all" ? "all" : Number(btn.dataset.win); saveSettings(); resetZoom();
 }));
 q("[data-g]").forEach(btn => btn.addEventListener("click", () => {
   q("[data-g]").forEach(b => b.setAttribute("aria-pressed", String(b === btn))); gFilter = btn.dataset.g; renderGallery();
@@ -1036,17 +1179,18 @@ async function exportZip() {
   const frames = await getAll("frames"), events = await getAll("events");
   if (!frames.length && !events.length) { toast("Nothing to export yet"); return; }
   const enc = new TextEncoder(), used = new Set(), files = [];
-  const csv = ["timestamp_iso,seq,cam,bytes,crc16,battery_v,jpeg_bytes"];
+  const csv = ["timestamp_iso,seq,cam,bytes,crc16,battery_v,jpeg_bytes,jpeg_status"];
   for (const r of frames) {
     const f = new Uint8Array(r.frame);
     let stem = r.seq != null ? String(r.seq) : `unknown_${r.ts}`;
     if (used.has(stem)) { let n = 2; while (used.has(`${stem}_${n}`)) n++; stem = `${stem}_${n}`; }
     used.add(stem);
     files.push({ name: `peek1_images/${stem}.hex`, data: enc.encode(frameToHexText(f)) });
-    if (r.jpeg) files.push({ name: `peek1_images/${stem}.jpg`, data: new Uint8Array(r.jpeg) });
+    const gj = getJpeg(f, SET.repair);
+    if (gj.jpeg) files.push({ name: `peek1_images/${stem}${gj.status === "repaired" ? "_repaired" : ""}.jpg`, data: gj.jpeg });
     const sd = parseSystemData(f);
     const cam = f.length >= 8 ? (f[7] === CAM_FRONT ? "F" : f[7] === CAM_BACK ? "B" : "?") : "short";
-    csv.push([new Date(r.ts).toISOString(), r.seq ?? "", cam, f.length, hex4(crc16ccitt(f)), sd ? sd.voltageV.toFixed(2) : "", r.jpeg ? r.jpeg.byteLength ?? r.jpeg.length : ""].join(","));
+    csv.push([new Date(r.ts).toISOString(), r.seq ?? "", cam, f.length, hex4(crc16ccitt(f)), sd ? sd.voltageV.toFixed(2) : "", gj.jpeg ? gj.jpeg.length : "", gj.status].join(","));
   }
   const ev = ["timestamp_iso,type,detail"];
   for (const e of events) ev.push([new Date(e.ts).toISOString(), e.type,
@@ -1056,6 +1200,7 @@ async function exportZip() {
     "PEEK1 Monitor session summary", `Exported: ${new Date().toISOString()}`,
     `Session start: ${S.start ? new Date(S.start).toISOString() : "-"}`, `Session length: ${S.start ? fmtAge(Date.now() - S.start) : "-"}`, "",
     `Frames received: ${S.total} (front ${S.f}, back ${S.b}, bad ${S.bad})`,
+    `JPEG header bit-slip: ${SET.repair ? `${S.repaired} repaired, ${S.broken} unrepairable` : `auto-repair off, ${S.broken} invalid`} (raw .hex files are unmodified)`,
     `Incomplete frames (BLE loss): ${S.lost}`, `Delivery: ${att ? ((S.total / att) * 100).toFixed(2) + "%" : "-"}`,
     `Sequence gaps (mode "${SET.seq}"): ${SET.seq === "off" ? "not checked" : S.seqGap}`,
     `Battery: ${S.batt.length ? `last ${S.batt[S.batt.length - 1][1].toFixed(2)} V, min ${Math.min(...S.batt.map(p => p[1])).toFixed(2)} V, max ${Math.max(...S.batt.map(p => p[1])).toFixed(2)} V` : "-"}`,
@@ -1084,6 +1229,8 @@ async function clearSession() {
 // ---------------- settings UI ----------------
 function bindSettings() {
   $("setBatt").value = SET.batt ?? ""; $("setSeq").value = SET.seq; $("setStale").value = SET.stale ?? "";
+  $("setRepair").value = SET.repair ? "on" : "off";
+  $("setRepair").addEventListener("change", async e => { SET.repair = e.target.value === "on"; saveSettings(); await restore(); toast(SET.repair ? "Auto-repair on" : "Auto-repair off: showing raw images"); });
   $("setBatt").addEventListener("change", e => { const v = parseFloat(e.target.value); SET.batt = Number.isFinite(v) ? v : null; R.battAlarm = false; saveSettings(); renderStats(); scheduleDraw(); });
   $("setStale").addEventListener("change", e => { const v = parseInt(e.target.value, 10); SET.stale = v > 0 ? v : null; saveSettings(); renderStats(); });
   $("setSeq").addEventListener("change", async e => { SET.seq = e.target.value; saveSettings(); await restore(); toast("Sequence gaps recalculated"); });
