@@ -57,6 +57,15 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; 
 .pill.connecting i, .pill.retrying i { background: var(--warn); animation: blink 1s steps(2) infinite; }
 .pill.retrying { background: var(--warnbg); border-color: transparent; }
 .pill.error { background: var(--badbg); border-color: transparent; } .pill.error i { background: var(--bad); }
+.pill.offline { background: var(--bluebg); border-color: transparent; } .pill.offline i { background: var(--blue); }
+.srcmode { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
+.srcmode button { border: 0; border-radius: 0; padding: 6px 12px; font-size: .84rem; background: var(--panel); }
+.srcmode button + button { border-left: 1px solid var(--line); }
+.srcmode button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+#drop { position: fixed; inset: 0; z-index: 60; display: none; place-items: center; background: color-mix(in srgb, var(--blue) 18%, transparent);
+  border: 3px dashed var(--blue); font-size: 1.2rem; font-weight: 600; color: var(--ink); pointer-events: none; }
+#drop.on { display: grid; }
+@media (max-width: 600px) { .srcmode button { padding: 6px 9px; font-size: .78rem; } }
 @keyframes blink { 50% { opacity: .25; } }
 .spacer { flex: 1; }
 button { font: inherit; font-weight: 500; padding: 8px 15px; border-radius: 8px; cursor: pointer;
@@ -241,12 +250,16 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="8" width="26" height="16" rx="8" fill="var(--blue)"/><rect x="16" y="8" width="13" height="16" rx="0" fill="var(--violet)" opacity=".85"/><rect x="3" y="8" width="26" height="16" rx="8" fill="none" stroke="var(--ink)" stroke-opacity=".15"/><circle cx="9.5" cy="16" r="3" fill="#fff"/><circle cx="22.5" cy="16" r="3" fill="#fff"/></svg>
       <div><span class="name">PEEK1 Monitor</span><small>BLE bench diagnostics</small></div>
     </div>
+    <div class="srcmode" role="group" aria-label="Data source"><button data-src="live" aria-pressed="true">Live BLE</button><button data-src="file">Offline file</button></div>
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Not connected</span></div>
     <div class="spacer"></div>
     <button class="icon" id="btnTheme" aria-label="Theme: auto" title="Theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button>
     <button id="btnConn" class="primary">Connect</button>
+    <button id="btnOpen" class="primary" hidden>Open file…</button>
+    <input type="file" id="fileIn" accept=".bin,.dat,.raw,.hex,.txt,application/octet-stream" multiple hidden>
   </div>
 </header>
+<div id="drop">Drop .bin or .hex files to open them offline</div>
 
 <div class="wrap">
   <div id="banners"></div>
@@ -388,6 +401,8 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
           <select id="setSeq"><option value="frame">+1 per frame</option><option value="cam">+1 per camera</option><option value="off">Don't check</option></select>
           <label for="setRepair">Auto-repair JPEG header<small>Fixes the known firmware bit-slip. Raw .hex stays unmodified. Turn off to see raw images.</small></label>
           <select id="setRepair"><option value="on">On</option><option value="off">Off</option></select>
+          <label for="setOffInt">Offline time per frame (s)<small>Frames carry no timestamp; offline times are estimated as seq × this value.</small></label>
+          <input id="setOffInt" type="number" step="0.1" min="0.1" placeholder="2" inputmode="decimal">
           <label for="setStale">Stale-link warning<small>Warn when no frame arrives for this many seconds while connected.</small></label>
           <input id="setStale" type="number" step="1" min="0" placeholder="off" inputmode="numeric">
         </div>
@@ -576,7 +591,7 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: null, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true };
+const SET = { batt: null, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2 };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
 
@@ -658,13 +673,18 @@ function openDb() {
     } catch { res(); }
   });
 }
+// Offline mode: frames come from an opened file and are never written to the live store.
+const OFF = { active: false, names: "", frames: [], events: [], inputs: null, issues: 0 };
+function nowT() { return OFF.active ? (S.lastTs ?? Date.now()) : Date.now(); }
 function put(store, rec) {
+  if (OFF.active) return;
   mem[store].push(rec);
   if (!db) return;
   try { db.transaction(store, "readwrite").objectStore(store).add(rec); }
   catch (e) { log(`[store] write failed: ${e}`); }
 }
 function getAll(store) {
+  if (OFF.active) return Promise.resolve(OFF[store].slice());
   if (!db) return Promise.resolve(mem[store].slice());
   return new Promise(res => {
     try { const r = db.transaction(store).objectStore(store).getAll();
@@ -874,7 +894,7 @@ $("lb").addEventListener("click", e => { if (e.target === $("lb")) $("lb").close
 function setKpi(id, cls) { const el = $(id); el.classList.remove("ok", "warn", "bad"); if (cls) el.classList.add(cls); }
 function rssiQuality(d) { return d >= -60 ? 4 : d >= -70 ? 3 : d >= -80 ? 2 : 1; }   // rough rule of thumb
 function renderStats() {
-  const now = Date.now();
+  const now = nowT();
   $("cT").textContent = S.total; $("cF").textContent = S.f; $("cB").textContent = S.b;
   $("cBad").textContent = S.bad + S.broken; $("cRep").textContent = SET.repair ? S.repaired : "off"; $("cLost").textContent = S.lost; $("cGap").textContent = SET.seq === "off" ? "off" : S.seqGap;
   setKpi("kImages", S.total ? (S.bad || S.broken ? "bad" : S.repaired ? "warn" : "ok") : null);
@@ -946,8 +966,8 @@ function valueAt(pts, t, step) {
 const VIEW = { zoom: null };        // null = live window; else [t0, t1] frozen range shared by all charts
 let BRUSH = null;                   // {id, a, b} while dragging a zoom range with the mouse
 const MIN_SPAN = 10000;
-function fullRange() { const now = Date.now(); return [Math.min(S.start ?? now, now - 60000), now]; }
-function liveRange() { const now = Date.now(); return [SET.win === "all" ? fullRange()[0] : now - SET.win, now]; }
+function fullRange() { const now = nowT(); return [Math.min(S.start ?? now, now - 60000), now]; }
+function liveRange() { const now = nowT(); return [SET.win === "all" ? fullRange()[0] : now - SET.win, now]; }
 function windowRange() { return VIEW.zoom ? VIEW.zoom : liveRange(); }
 function setZoom(t0, t1) {
   const [f0, f1] = fullRange();
@@ -1379,6 +1399,7 @@ async function onConnClicked() {
     markDisconnected(); startAdvWatch();
     setPill("", "Disconnected"); setConnButton("Connect", true); return;
   }
+  if (OFF.active) return;
   if (!navigator.bluetooth) { showSupportBanner(); return; }
   manualDisconnect = false;
   try {
@@ -1409,7 +1430,7 @@ function showSupportBanner() {
   const why = /iPhone|iPad|iPod/.test(ua) ? "iPhone and iPad browsers don't support Web Bluetooth."
     : /Firefox\//.test(ua) ? "Firefox doesn't support Web Bluetooth."
     : !window.isSecureContext ? "This page must be opened over HTTPS." : "This browser doesn't support Web Bluetooth.";
-  setBanner("support", "bad", `${why} Use Chrome or Edge on Android, Windows or macOS. Saved sessions can still be viewed and exported here.`);
+  setBanner("support", "bad", `${why} Use Chrome or Edge on Android, Windows or macOS for live BLE. Offline files (.bin / .hex) work in any browser.`);
   $("btnConn").disabled = true; setPill("error", "Bluetooth unavailable");
 }
 
@@ -1437,7 +1458,8 @@ async function exportZip() {
   const att = S.total + S.lost;
   const summary = [
     "PEEK1 Monitor session summary", `Exported: ${new Date().toISOString()}`,
-    `Session start: ${S.start ? new Date(S.start).toISOString() : "-"}`, `Session length: ${S.start ? fmtAge(Date.now() - S.start) : "-"}`, "",
+    `Session start: ${S.start ? new Date(S.start).toISOString() : "-"}`, `Session length: ${S.start ? fmtAge(nowT() - S.start) : "-"}`,
+    `Source: ${OFF.active ? "offline file " + OFF.names + " (times estimated from seq × " + SET.offInt + " s)" : "live BLE"}`, "",
     `Frames received: ${S.total} (front ${S.f}, back ${S.b}, bad ${S.bad})`,
     `JPEG header bit-slip: ${SET.repair ? `${S.repaired} repaired, ${S.broken} unrepairable` : `auto-repair off, ${S.broken} invalid`} (raw .hex files are unmodified)`,
     `Incomplete frames (BLE loss): ${S.lost}`, `Delivery: ${att ? ((S.total / att) * 100).toFixed(2) + "%" : "-"}`,
@@ -1448,7 +1470,7 @@ async function exportZip() {
   files.push({ name: "summary.txt", data: enc.encode(summary) });
   files.push({ name: "frames.csv", data: enc.encode(csv.join("\n") + "\n") });
   files.push({ name: "events.csv", data: enc.encode(ev.join("\n") + "\n") });
-  const name = `peek1_${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
+  const name = `peek1_${OFF.active ? "offline_" : ""}${new Date().toISOString().replace(/[:.]/g, "-")}.zip`;
   download(makeZip(files), name); log(`[export] ${frames.length} frames, ${events.length} events → ${name}`); toast("Export ready");
 }
 function resetView() {
@@ -1458,6 +1480,7 @@ function resetView() {
   $("fMeta").textContent = ""; $("bMeta").textContent = "";
 }
 async function clearSession() {
+  if (OFF.active) { await setSource("live"); return; }
   if (!confirm("Delete all saved frames, events and charts from this browser?")) return;
   mem.frames.length = 0; mem.events.length = 0;
   if (db) { try { const tx = db.transaction(["frames", "events"], "readwrite"); tx.objectStore("frames").clear(); tx.objectStore("events").clear(); } catch { /* ignore */ } }
@@ -1466,10 +1489,137 @@ async function clearSession() {
   $("storedCount").textContent = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); renderLog(); pvBuild("end"); toast("Session cleared");
 }
 
+
+// ---------------- offline: open .bin / .hex files ----------------
+// A PEEK1 frame describes itself: C0 5A, byte 2 = 0x01, bytes 3–6 = total frame length (LE uint32),
+// byte 7 = camera (0x11/0x22), JPEG SOI at byte 27. The scanner walks the file frame by frame and
+// resynchronises on the next valid frame after any corruption. A captured BLE stream (7-byte INFO
+// header before each frame) is also accepted: those headers are recognised and skipped.
+function u32le(u, i) { return (u[i] | (u[i + 1] << 8) | (u[i + 2] << 16) | (u[i + 3] << 24)) >>> 0; }
+function isFrameAt(u, i) {
+  if (i + 29 > u.length || u[i] !== 0xC0 || u[i + 1] !== 0x5A) return 0;
+  const len = u32le(u, i + 3), cam = u[i + 7];
+  if (len < 32 || len > 2_000_000 || (cam !== CAM_FRONT && cam !== CAM_BACK) || u[i + 27] !== 0xFF || u[i + 28] !== 0xD8) return 0;
+  return len;
+}
+function scanFrames(u, name) {
+  const frames = [], issues = [];
+  let i = 0, junkStart = -1, junkBytes = 0;
+  const flushJunk = () => { if (junkBytes > 0) issues.push({ off: junkStart, kind: "junk", text: `${junkBytes.toLocaleString()} bytes of unrecognised data skipped at offset ${junkStart} in ${name}` }); junkStart = -1; junkBytes = 0; };
+  while (i < u.length) {
+    const len = isFrameAt(u, i);
+    if (len) {
+      if (i + len > u.length) { flushJunk(); issues.push({ off: i, kind: "trunc", text: `Truncated frame at offset ${i} in ${name}: ${u.length - i} of ${len} bytes` }); break; }
+      flushJunk(); frames.push({ off: i, bytes: u.slice(i, i + len) }); i += len; continue;
+    }
+    // BLE INFO header (C0 5A + LE length + 1 byte) directly followed by a frame of that length
+    if (u[i] === 0xC0 && u[i + 1] === 0x5A && i + 7 < u.length && isFrameAt(u, i + 7) && u32le(u, i + 2) === isFrameAt(u, i + 7)) { i += 7; continue; }
+    const b = u[i];
+    if (b !== 0x00 && b !== 0xFF) { if (junkStart < 0) junkStart = i; junkBytes++; }   // 00/FF = erased flash or padding
+    i++;
+  }
+  flushJunk();
+  return { frames, issues };
+}
+function hexTextToBytes(txt) {
+  const clean = txt.replace(/[^0-9a-fA-F]/g, "");
+  const out = new Uint8Array(clean.length >> 1);
+  for (let k = 0; k < out.length; k++) out[k] = parseInt(clean.substr(k * 2, 2), 16);
+  return out;
+}
+async function readInputs(files) {
+  const list = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const inputs = [];
+  for (const f of list) {
+    const isHex = /\.(hex|txt)$/i.test(f.name);
+    const bytes = isHex ? hexTextToBytes(await f.text()) : new Uint8Array(await f.arrayBuffer());
+    inputs.push({ name: f.name, isHex, bytes, mtime: f.lastModified || Date.now() });
+  }
+  return inputs;
+}
+function buildOffline(inputs) {
+  let all = [], issues = [];
+  for (const inp of inputs) {
+    const r = scanFrames(inp.bytes, inp.name);
+    r.frames.forEach(fr => fr.src = inp.name); all = all.concat(r.frames); issues = issues.concat(r.issues.map(x => ({ ...x, src: inp.name })));
+  }
+  const seqOf = b => b.length >= 26 ? (b[24] << 8) | b[25] : null;
+  if (inputs.length && inputs.every(x => x.isHex)) all.sort((a, b) => (seqOf(a.bytes) ?? 0) - (seqOf(b.bytes) ?? 0));
+  // time axis from seq: k grows by Δseq for normal steps, by 1 on duplicates/restarts
+  const ks = []; let k = 0, prev = null;
+  for (const fr of all) {
+    const s = seqOf(fr.bytes);
+    if (prev != null && s != null) { const d = (s - prev) & 0xFFFF; k += d >= 1 && d < 0x8000 ? d : 1; } else if (ks.length) k += 1;
+    ks.push(k); if (s != null) prev = s;
+  }
+  const step = Math.max(0.1, Number(SET.offInt) || 2) * 1000, end = Math.max(...inputs.map(x => x.mtime));
+  const base = end - k * step;
+  OFF.frames = all.map((fr, n) => ({ ts: base + ks[n] * step, seq: seqOf(fr.bytes), frame: fr.bytes }));
+  const t0 = OFF.frames.length ? OFF.frames[0].ts : end;
+  OFF.events = [{ ts: t0, type: "note", level: "info",
+    text: `Opened ${inputs.map(x => x.name).join(", ")}: ${all.length.toLocaleString()} frames, ${issues.length} issue${issues.length === 1 ? "" : "s"}; times estimated (seq × ${step / 1000} s)` }];
+  for (const x of issues) {
+    let near = t0; for (let n = 0; n < all.length && all[n].src === x.src && all[n].off < x.off; n++) near = OFF.frames[n].ts;
+    OFF.events.push({ ts: near, type: "note", level: x.kind === "trunc" ? "bad" : "warn", text: x.text });
+  }
+  OFF.issues = issues.length;
+  return all.length;
+}
+async function openOffline(files) {
+  if (!files || !files.length) return;
+  toast("Reading file…"); await new Promise(r => setTimeout(r, 30));
+  let inputs;
+  try { inputs = await readInputs(files); } catch (e) { toast("Could not read file: " + e.message); return; }
+  const n = buildOffline(inputs);
+  if (!n) { setBanner("offline", "bad", `No PEEK1 frames found in ${inputs.map(x => x.name).join(", ")}. Expected frames starting with C0 5A, camera 0x11/0x22 at byte 7 and JPEG at byte 27.`); return; }
+  OFF.inputs = inputs; OFF.names = inputs.map(x => x.name).join(", ");
+  await setSource("file", true);
+}
+async function setSource(src, loaded = false) {
+  q("[data-src]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.src === src)));
+  if (src === "file") {
+    if (!loaded && !OFF.inputs) {               // nothing loaded yet: ask for a file, stay on live until one is opened
+      q("[data-src]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.src === "live")));
+      $("fileIn").click(); return;
+    }
+    if (device && device.gatt.connected) { manualDisconnect = true; clearTimeout(reconnectTimer); device.gatt.disconnect(); markDisconnected(); }
+    $("btnConn").hidden = true; $("btnOpen").hidden = false; $("btnClear").textContent = "Close file";
+    if (!loaded) buildOffline(OFF.inputs);
+    OFF.active = true;
+    SET.win = "all"; q("[data-win]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.win === "all")));
+    VIEW.zoom = null; updateZoomBar();
+    setPill("offline", `Offline · ${OFF.names}`);
+    setBanner("offline", "info", `Offline file: ${OFF.names} · ${OFF.frames.length.toLocaleString()} frames${OFF.issues ? ` · ${OFF.issues} parse issue(s), see Events` : ""} · times are estimated (seq × ${SET.offInt} s), frames carry no timestamp.`);
+    setBanner("support"); setBanner("stale");
+    await restore();
+  } else {
+    OFF.active = false; OFF.inputs = null; OFF.frames = []; OFF.events = []; OFF.names = "";
+    $("btnConn").hidden = false; $("btnOpen").hidden = true; $("btnClear").textContent = "Clear session";
+    setBanner("offline"); setPill("", "Not connected"); setConnButton("Connect", true);
+    await restore();
+    if (!navigator.bluetooth) showSupportBanner();
+  }
+}
+q("[data-src]").forEach(b => b.addEventListener("click", () => {
+  if (b.dataset.src === "file" && OFF.active) return;
+  if (b.dataset.src === "live" && !OFF.active && $("btnOpen").hidden) return;
+  setSource(b.dataset.src);
+}));
+$("btnOpen").onclick = () => $("fileIn").click();
+$("fileIn").addEventListener("change", e => { const files = [...e.target.files]; e.target.value = ""; openOffline(files); });
+{ let depth = 0;
+  window.addEventListener("dragenter", e => { if (e.dataTransfer?.types?.includes("Files")) { depth++; $("drop").classList.add("on"); e.preventDefault(); } });
+  window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) $("drop").classList.remove("on"); });
+  window.addEventListener("dragover", e => { if (e.dataTransfer?.types?.includes("Files")) e.preventDefault(); });
+  window.addEventListener("drop", e => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); depth = 0; $("drop").classList.remove("on"); openOffline([...e.dataTransfer.files]); }); }
+
 // ---------------- settings UI ----------------
 function bindSettings() {
   $("setBatt").value = SET.batt ?? ""; $("setSeq").value = SET.seq; $("setStale").value = SET.stale ?? "";
   $("setRepair").value = SET.repair ? "on" : "off";
+  $("setOffInt").value = SET.offInt;
+  $("setOffInt").addEventListener("change", async e => { const v = parseFloat(e.target.value); SET.offInt = v > 0 ? v : 2; e.target.value = SET.offInt; saveSettings();
+    if (OFF.active) { await setSource("file"); toast("Offline times recalculated"); } });
   $("setRepair").addEventListener("change", async e => { SET.repair = e.target.value === "on"; saveSettings(); await restore(); toast(SET.repair ? "Auto-repair on" : "Auto-repair off: showing raw images"); });
   $("setBatt").addEventListener("change", e => { const v = parseFloat(e.target.value); SET.batt = Number.isFinite(v) ? v : null; R.battAlarm = false; saveSettings(); renderStats(); scheduleDraw(); });
   $("setStale").addEventListener("change", e => { const v = parseInt(e.target.value, 10); SET.stale = v > 0 ? v : null; saveSettings(); renderStats(); });
