@@ -678,7 +678,7 @@ with check ( (select realtime.topic()) like 'peek1:%'
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v17 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v18 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1596,7 +1596,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v17 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v18 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1617,7 +1617,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v17, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v18, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2426,7 +2426,23 @@ function localTransport(room, onMsg) {
   const bc = new BroadcastChannel("peek1-remote:" + room); bc.onmessage = e => onMsg(e.data);
   return { label: "Local test (this browser)", send: async m => bc.postMessage(m), close: async () => bc.close() };
 }
+async function rmPreflight(cfg) {
+  const host = cfg.url.replace(/^https:\/\//, "");
+  let r;
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+    r = await fetch(`${cfg.url}/auth/v1/health`, { headers: { apikey: cfg.key }, signal: ctl.signal, cache: "no-store" });
+    clearTimeout(to);
+  } catch (e) {
+    throw new Error(`Cannot reach ${host}. Check that the Project URL is right (https://xxxx.supabase.co, not the dashboard link), the project is not paused (dashboard → Restore), and no ad-blocker, VPN or firewall is blocking supabase.co. Try once on mobile data.`);
+  }
+  if (r.status === 401 || r.status === 403) throw new Error(`Reached ${host}, but the key was refused. Copy the publishable (or anon) key again from Project Settings → API.`);
+  if (r.status === 404) throw new Error(`${host} answered "not found". Check the Project URL, or the project may still be starting.`);
+  if (r.status >= 500) throw new Error(`${host} is having a problem (HTTP ${r.status}). If the project was paused, restore it in the dashboard and wait a minute.`);
+}
 async function supabaseTransport(cfg, onMsg) {
+  if (!navigator.onLine) throw new Error("This device is offline.");
+  await rmPreflight(cfg);
   const sb = await loadSupabase();
   if (!RM.client || RM.clientUrl !== cfg.url) { RM.client = sb.createClient(cfg.url, cfg.key); RM.clientUrl = cfg.url; }
   const client = RM.client;
@@ -2434,7 +2450,9 @@ async function supabaseTransport(cfg, onMsg) {
   if (!session) {
     if (!cfg.email || !cfg.password) throw new Error("Enter your email and password to sign in.");
     const { data, error } = await client.auth.signInWithPassword({ email: cfg.email, password: cfg.password });
-    if (error) throw new Error(`Sign-in failed: ${error.message}`);
+    if (error) throw new Error(/invalid login/i.test(error.message) ? "Sign-in failed: wrong email or password. Check the user under Authentication → Users." :
+      /email not confirmed/i.test(error.message) ? "Sign-in failed: this user's email is not confirmed. In Authentication → Users, confirm the user (or recreate it with Auto confirm)." :
+      `Sign-in failed: ${error.message}`);
     session = data.session;
   }
   RM.user = (session.user && session.user.email) || "";
@@ -2499,15 +2517,26 @@ async function rmOnMsg(raw) {
   rmRender();
 }
 function rmCfg() {
-  return { role: $("rmRole").value, backend: $("rmBackend").value, url: $("rmUrl").value.trim().replace(/\/+$/, ""), key: $("rmKey").value.trim(),
+  return { role: $("rmRole").value, backend: $("rmBackend").value, url: rmNormUrl($("rmUrl").value), key: $("rmKey").value.trim().replace(/\s+/g, ""),
     email: $("rmEmail").value.trim(), password: $("rmPass").value, room: $("rmRoom").value.trim().toLowerCase(), secret: $("rmSecret").value.normalize("NFC").trim() };
+}
+// v18: accept what people actually paste: the dashboard link, a URL with /rest/v1, missing https://
+function rmNormUrl(raw) {
+  let u = String(raw || "").trim().replace(/\s+/g, "");
+  const dash = u.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{10,40})/i);
+  if (dash) return `https://${dash[1].toLowerCase()}.supabase.co`;
+  if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+  u = u.replace(/^http:\/\//i, "https://").replace(/\/(rest|auth|realtime)\/v1.*$/i, "").replace(/\/+$/, "");
+  return u;
 }
 function rmValidate(c) {
   if (c.role === "off") return "Choose Gateway or Viewer.";
   if (!/^[a-z0-9._-]{3,48}$/.test(c.room)) return "Room: 3–48 characters: letters, digits, dot, dash or underscore (no spaces).";
   if (c.secret.length < 12) return "Room passphrase: at least 12 characters.";
   if (c.backend === "supabase") {
-    if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL must start with https://";
+    if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL should look like https://xxxx.supabase.co (Project Settings → API).";
+    if (/abcdefghijklmnop|xxxx/i.test(c.url)) return "That is the sample URL. Paste your own Project URL from Supabase → Project Settings → API.";
+    if (/^sb_publishable_x+$/i.test(c.key) || c.key.length < 20) return "Paste your own publishable (or anon) key from Supabase → Project Settings → API.";
     if (!c.key) return "Enter the publishable key.";
     if (c.role === "gateway" && !$("rmBaa").checked && !$("rmModeTest").checked) return "Choose what this gateway will share: test data only, or patient data (BAA project).";
   }
@@ -2522,7 +2551,7 @@ async function rmStart() {
   try {
     RM.key = await rmDeriveKey(c.secret, c.room); RM.aad = new TextEncoder().encode("peek1:" + c.room); RM.room = c.room;
     RM.sent = RM.recv = RM.bad = RM.sendErr = 0; RM.viewers.clear(); RM.seen.clear(); RM.lastHb = 0; RM.gw = null; RM.firstHello = true;
-    $("rmRoom").value = c.room;                                     // show the normalised room name
+    $("rmRoom").value = c.room; $("rmUrl").value = c.url;           // show the normalised room name and URL
     RM.backend = c.backend; RM.startedAt = Date.now();
     RM.mode = c.backend === "local" ? "local" : ($("rmBaa").checked ? "patient" : "test"); RM.blocked = 0; RM.relayErr = 0; RM.relayOk = 0; RM.lastRelay = "";
     RM.t = c.backend === "local" ? localTransport(c.room, rmOnMsg) : await supabaseTransport(c, rmOnMsg);
