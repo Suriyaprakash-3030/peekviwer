@@ -291,6 +291,8 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
 .form.rm-form input, .form.rm-form select { width: 100%; }
 .rm-baa { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--warnbg); }
 .rm-baa input { margin-top: 3px; }
+.rm-hint { margin-top: 12px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--warn); background: var(--warnbg); font-size: .86rem; }
+.rm-hint b { display: block; margin-bottom: 2px; }
 .rm-setup { margin-top: 14px; font-size: .86rem; }
 .rm-setup summary { cursor: pointer; font-weight: 500; }
 .rm-setup ol { padding-left: 20px; } .rm-setup li { margin: 6px 0; }
@@ -557,16 +559,17 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
           <label for="rmRole">This device</label>
           <select id="rmRole"><option value="off">Off</option><option value="gateway">Gateway: share this session</option><option value="viewer">Viewer: watch a session</option></select>
           <label for="rmBackend">Relay</label>
-          <select id="rmBackend"><option value="supabase">Supabase Realtime</option><option value="local">Local test (two tabs, this computer)</option></select>
+          <select id="rmBackend"><option value="supabase">Supabase Realtime</option><option value="local">Local test (tabs in this browser only)</option></select>
           <label for="rmUrl" class="sb">Project URL</label><input id="rmUrl" class="sb" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false">
           <label for="rmKey" class="sb">Publishable key</label><input id="rmKey" class="sb" placeholder="sb_publishable_…" autocomplete="off" spellcheck="false">
-          <label for="rmEmail" class="sb">Email</label><input id="rmEmail" class="sb" type="email" autocomplete="username">
+          <label for="rmEmail" class="sb">Email</label><input id="rmEmail" class="sb" type="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
           <label for="rmPass" class="sb">Password</label><input id="rmPass" class="sb" type="password" autocomplete="current-password">
-          <label for="rmRoom">Room<small>Same name on the gateway and every viewer.</small></label><input id="rmRoom" placeholder="e.g. bench-a" autocomplete="off" spellcheck="false">
-          <label for="rmSecret">Room passphrase<small>Encrypts frames end to end. At least 12 characters. Never sent or stored.</small></label><input id="rmSecret" type="password" autocomplete="off">
+          <label for="rmRoom">Room<small>Same name on the gateway and every viewer.</small></label><input id="rmRoom" placeholder="e.g. bench-a" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <label for="rmSecret">Room passphrase<small>Encrypts frames end to end. At least 12 characters. Never sent or stored.</small></label><input id="rmSecret" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
         </div>
         <label class="rm-baa" id="rmBaaRow"><input type="checkbox" id="rmBaa"> This Supabase project has the HIPAA add-on enabled and a signed BAA. Required before patient data leaves this PC.</label>
-        <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button></div>
+        <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button><button id="rmLink" hidden>Copy viewer link</button></div>
+        <div class="rm-hint" id="rmHint" hidden></div>
         <div class="la-grid" id="rmStats"></div>
         <div class="rm-sim">
           <div class="la-sub">Test feed</div>
@@ -669,7 +672,7 @@ with check ( (select realtime.topic()) like 'peek1:%'
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v15 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v16 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1587,7 +1590,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v15 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v16 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1608,7 +1611,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v15, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v16, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2479,11 +2482,11 @@ async function rmOnMsg(raw) {
 }
 function rmCfg() {
   return { role: $("rmRole").value, backend: $("rmBackend").value, url: $("rmUrl").value.trim().replace(/\/+$/, ""), key: $("rmKey").value.trim(),
-    email: $("rmEmail").value.trim(), password: $("rmPass").value, room: $("rmRoom").value.trim(), secret: $("rmSecret").value };
+    email: $("rmEmail").value.trim(), password: $("rmPass").value, room: $("rmRoom").value.trim().toLowerCase(), secret: $("rmSecret").value.normalize("NFC").trim() };
 }
 function rmValidate(c) {
   if (c.role === "off") return "Choose Gateway or Viewer.";
-  if (!/^[A-Za-z0-9._-]{3,48}$/.test(c.room)) return "Room: 3–48 characters, letters, digits, dot, dash or underscore.";
+  if (!/^[a-z0-9._-]{3,48}$/.test(c.room)) return "Room: 3–48 characters: letters, digits, dot, dash or underscore (no spaces).";
   if (c.secret.length < 12) return "Room passphrase: at least 12 characters.";
   if (c.backend === "supabase") {
     if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL must start with https://";
@@ -2501,6 +2504,8 @@ async function rmStart() {
   try {
     RM.key = await rmDeriveKey(c.secret, c.room); RM.aad = new TextEncoder().encode("peek1:" + c.room); RM.room = c.room;
     RM.sent = RM.recv = RM.bad = RM.sendErr = 0; RM.viewers.clear(); RM.seen.clear(); RM.lastHb = 0; RM.gw = null; RM.firstHello = true;
+    $("rmRoom").value = c.room;                                     // show the normalised room name
+    RM.backend = c.backend; RM.startedAt = Date.now();
     RM.t = c.backend === "local" ? localTransport(c.room, rmOnMsg) : await supabaseTransport(c, rmOnMsg);
     if (c.backend === "local") RM.user = "local";
     RM.role = c.role;
@@ -2510,12 +2515,12 @@ async function rmStart() {
       resetView(); renderGallery(); renderTimeline(); pvBuild("end");
       R.connectedSince = Date.now(); setPill("connecting", `Remote · waiting for gateway in ${c.room}`);
       const hello = () => { rmSend({ k: "hello", id: RM.id, who: RM.user, first: RM.firstHello }); RM.firstHello = false; };
-      hello(); RM.timers.push(setInterval(hello, 20000));
-      RM.timers.push(setInterval(rmViewerWatch, 2000));
+      hello(); RM.timers.push(clkEvery(20000, hello));
+      RM.timers.push(clkEvery(2000, rmViewerWatch));
     } else {
       const hb = () => rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" });
-      hb(); RM.timers.push(setInterval(hb, 5000));
-      RM.timers.push(setInterval(() => { const now = Date.now(); for (const [k, v] of RM.viewers) if (now - v.t > 60000) RM.viewers.delete(k); rmRender(); }, 5000));
+      hb(); RM.timers.push(clkEvery(5000, hb));
+      RM.timers.push(clkEvery(5000, () => { const now = Date.now(); for (const [k, v] of RM.viewers) if (now - v.t > 60000) RM.viewers.delete(k); rmRender(); }));
     }
     note("ok", `Remote ${RM.role} started: room ${c.room} via ${RM.t.label}${RM.user ? `, signed in as ${RM.user}` : ""}`);
     rmSetState("on", RM.role === "gateway" ? "Sharing" : "Watching");
@@ -2525,7 +2530,7 @@ async function rmStart() {
   } finally { $("rmStart").disabled = false; rmRender(); }
 }
 async function rmStop(reason) {
-  for (const t of RM.timers) clearInterval(t); RM.timers = [];
+  for (const t of RM.timers) clkCancel(t); RM.timers = [];
   const was = RM.role; RM.role = "off";
   try { if (RM.t) await RM.t.close(); } catch { /* already closed */ }
   RM.t = null; RM.key = null; RM.aad = null;
@@ -2541,6 +2546,19 @@ function rmViewerWatch() {
   else setPill("retrying", age == null ? `Remote · waiting for gateway in ${RM.room}` : `Remote · gateway silent for ${fmtAge(age)}`);
   rmRender(); renderStats();
 }
+function rmDiagnose() {
+  const box = $("rmHint"); if (!box) return;
+  let h = null; const since = RM.startedAt ? Date.now() - RM.startedAt : 0;
+  if (RM.role === "viewer" && (!RM.lastHb || Date.now() - RM.lastHb > 15000) && since > 10000) {
+    if (RM.bad > 0) h = ["Messages arrive but cannot be decrypted.", "The room passphrase is different from the gateway's. Retype it on both devices (it is case-sensitive)."];
+    else if (RM.backend === "local") h = ["Local test only connects tabs in this same browser on this computer.", "For a phone or another PC, choose Relay: Supabase Realtime on both the gateway and this device."];
+    else h = [`Nothing heard in room "${RM.room}".`, "Check that the gateway shows Sharing with exactly this room name, both devices use the same Project URL, and the gateway page is still open."];
+  } else if (RM.role === "gateway" && since > 30000 && !RM.viewers.size) {
+    if (RM.bad > 0) h = ["A viewer is trying to join with a different passphrase.", "Ask them to retype the room passphrase."];
+    else if (RM.backend === "local") h = ["No viewer yet. Local test only reaches tabs in this browser.", "Open this page in another tab or window of this browser, or switch both sides to Supabase Realtime."];
+  }
+  box.hidden = !h; if (h) box.innerHTML = `<b>${esc(h[0])}</b>${esc(h[1])}`;
+}
 function rmSetState(cls, text) { const el = $("rmState"); el.className = "act muted " + (cls || ""); el.textContent = text; }
 function rmRender() {
   const on = RM.role !== "off";
@@ -2550,7 +2568,9 @@ function rmRender() {
   q("#remoteCard .sb").forEach(el => { el.hidden = !sbOn; });
   $("rmBaaRow").hidden = !(sbOn && $("rmRole").value !== "viewer");
   const cell = (k, v, sub) => `<div class="la-cell"><span>${esc(k)}</span><b>${esc(v)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
-  if (!on) { $("rmStats").innerHTML = ""; crBadge("remote", 0); return; }
+  $("rmLink").hidden = !(on && RM.role === "gateway");
+  rmDiagnose();
+  if (!on) { $("rmStats").innerHTML = ""; $("rmHint").hidden = true; crBadge("remote", 0); return; }
   const now = Date.now(), live = [...RM.viewers.values()].filter(v => now - v.t < 60000);
   $("rmStats").innerHTML = RM.role === "gateway"
     ? cell("Viewers watching", String(live.length), live.map(v => v.who).filter(Boolean).slice(0, 3).join(", ")) + cell("Frames sent", RM.sent.toLocaleString(), RM.sendErr ? `${RM.sendErr} send errors` : RM.t ? RM.t.label : "") +
@@ -2559,6 +2579,20 @@ function rmRender() {
       cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), RM.bad ? "wrong passphrase?" : "none");
   crBadge("remote", RM.bad ? RM.bad : 0);
 }
+// ---------------- background-proof clock (v16) ----------------
+// Chrome throttles setTimeout/setInterval in hidden tabs (down to about once a minute after 5 min).
+// A dedicated worker keeps ticking, so replay and heartbeats continue when the gateway tab is not visible.
+const CLK = { tasks: new Map(), n: 0, worker: null, fallback: null };
+(function clkStart() {
+  const run = () => { const now = Date.now(); for (const [id, t] of CLK.tasks) if (now >= t.due) { if (t.every) t.due = now + t.every; else CLK.tasks.delete(id); try { t.fn(); } catch (e) { reportError(e.message); } } };
+  try { const src = "setInterval(() => postMessage(0), 100);";
+    CLK.worker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" }))); CLK.worker.onmessage = run; }
+  catch { CLK.fallback = setInterval(run, 100); }
+})();
+function clkAfter(ms, fn) { const id = ++CLK.n; CLK.tasks.set(id, { due: Date.now() + ms, fn }); return id; }
+function clkEvery(ms, fn) { const id = ++CLK.n; CLK.tasks.set(id, { due: Date.now() + ms, every: ms, fn }); return id; }
+function clkCancel(id) { CLK.tasks.delete(id); }
+
 // ---------------- simulated capsule / test feed (v15) ----------------
 const SIM = { on: false, timer: null, frames: [], i: 0, speed: 1, name: "" };
 async function simStart(file) {
@@ -2585,11 +2619,11 @@ function simTick() {
   assembler.onInfo(info);
   for (let o = 0; o < f.length; o += 244) { const d = f.slice(o, o + 244); if (d.length > S.maxChunk) S.maxChunk = d.length; assembler.onChunk(d); }
   if (SIM.i % 10 === 0) simRender();
-  SIM.timer = setTimeout(simTick, Math.max(20, 1100 / SIM.speed));   // ~55 frames/min at 1x, like the capsule
+  SIM.timer = clkAfter(Math.max(20, 1100 / SIM.speed), simTick);     // ~55 frames/min at 1x; worker clock keeps going in background tabs
 }
 function simStop(reason) {
   if (!SIM.on) return;
-  SIM.on = false; clearTimeout(SIM.timer); assembler.flush();
+  SIM.on = false; clkCancel(SIM.timer); assembler.flush();
   if (!(device && device.gatt && device.gatt.connected)) R.connectedSince = null;
   setPill("", "Simulation stopped"); setBanner("sim");
   note("info", `Simulated capsule stopped (${reason}): ${SIM.i} of ${SIM.frames.length} frames replayed`);
@@ -2609,6 +2643,22 @@ function rmInit() {
   $("rmSignOut").addEventListener("click", async () => { if (RM.role !== "off") await rmStop("signed out"); if (RM.client) await RM.client.auth.signOut(); RM.user = ""; toast("Signed out"); });
   window.addEventListener("beforeunload", () => { if (RM.t) RM.t.close(); });
   rmRender();
+  $("rmLink").addEventListener("click", async () => {
+    const p = new URLSearchParams({ rm: "viewer", relay: RM.backend || "supabase", room: RM.room });
+    if (RM.backend === "supabase") { p.set("url", SET.rmUrl); p.set("key", SET.rmKey); }
+    const link = `${location.origin}${location.pathname}#${p.toString()}`;           // after #: never sent to any server
+    try { await navigator.clipboard.writeText(link); toast("Viewer link copied. Send the passphrase separately."); }
+    catch { window.prompt("Copy this viewer link (the passphrase is not included):", link); }
+  });
+  try {                                                                               // open from a viewer link
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("rm") === "viewer") {
+      $("rmRole").value = "viewer"; if (h.get("relay")) $("rmBackend").value = h.get("relay");
+      if (h.get("room")) $("rmRoom").value = h.get("room"); if (h.get("url")) $("rmUrl").value = h.get("url"); if (h.get("key")) $("rmKey").value = h.get("key");
+      history.replaceState(null, "", location.pathname + location.search); rmRender(); crSelect("remote");
+      toast("Viewer settings filled in. Sign in, enter the room passphrase, then press Start.");
+    }
+  } catch { /* ignore malformed links */ }
   $("simBtn").addEventListener("click", () => $("simFile").click());
   $("simFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) simStart(f); });
   $("simStop").addEventListener("click", () => simStop("by user"));
