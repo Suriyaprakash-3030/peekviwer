@@ -498,7 +498,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <div class="zoombar" id="zoombar">
           <button id="zOut" aria-label="Zoom out">−</button><button id="zIn" aria-label="Zoom in">+</button>
           <button id="zLeft" aria-label="Pan earlier">‹</button><button id="zRight" aria-label="Pan later">›</button>
-          <span class="zl" id="zLabel">Live · scroll, drag a range, or pinch on a chart to zoom</span>
+          <span class="zl" id="zLabel">Live · drag a range, Ctrl + scroll, or pinch on a chart to zoom</span>
           <button id="zReset" hidden>Back to live</button>
         </div>
         <div class="chart">
@@ -559,7 +559,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v12 · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v13 · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1494,7 +1494,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v12</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v13</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -1531,7 +1531,9 @@ function fullRange() { const now = nowT(); return [Math.min(S.start ?? now, now 
 function liveRange() { const now = nowT(); return [SET.win === "all" ? fullRange()[0] : now - SET.win, now]; }
 function windowRange() { return VIEW.zoom ? VIEW.zoom : liveRange(); }
 function setZoom(t0, t1) {
-  const [f0, f1] = fullRange();
+  if (S.start == null) return;                         // v13: nothing to zoom into yet
+  const f0 = S.start, f1 = Math.max(nowT(), S.start + MIN_SPAN);   // v13: data range only
+  if (t1 <= f0) return;
   let span = Math.max(MIN_SPAN, t1 - t0);
   if (span >= f1 - f0) { resetZoom(); return; }
   if (t0 < f0) t0 = f0; if (t0 + span > f1) t0 = f1 - span;
@@ -1547,7 +1549,7 @@ function updateZoomBar() {
   const on = !!VIEW.zoom, z = $("zoombar");
   z.classList.toggle("on", on); $("zReset").hidden = !on;
   if (on) { const [a, b] = VIEW.zoom; $("zLabel").textContent = `Zoomed ${tClock(a)} – ${tClock(b)} (${fmtAge(b - a)}) · paused, double-click to return`; }
-  else $("zLabel").textContent = "Live · scroll, drag a range, or pinch on a chart to zoom";
+  else $("zLabel").textContent = "Live · drag a range, Ctrl + scroll, or pinch on a chart to zoom";
 }
 function rateBins() {
   const [t0, t1] = windowRange();
@@ -1566,6 +1568,7 @@ function drawChart(cv, o) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   const muted = cssVar("--muted"), grid = cssVar("--grid"), ink = cssVar("--ink");
   g.font = "11px 'IBM Plex Sans', system-ui, sans-serif";
+  if (VIEW.zoom && S.start != null && VIEW.zoom[1] < S.start) { VIEW.zoom = null; updateZoomBar(); }   // v13: never stay parked before the data
   const [t0, t1] = windowRange();
   const series = o.series || [];
   const vis = series.map(s => s.pts.filter(p => p[0] >= t0 && p[0] <= t1));
@@ -1577,7 +1580,9 @@ function drawChart(cv, o) {
   const anyData = o.bars ? barPts.some(p => p[1] > 0) : all.length > 0;
   if (!anyData) {
     cv._map = null; g.fillStyle = muted; g.textAlign = "center"; g.textBaseline = "middle";
-    o.empty.split("\n").forEach((ln, i, a) => g.fillText(ln, W / 2, H / 2 + (i - (a.length - 1) / 2) * 15)); return;
+    const hasAny = series.some(s => s.pts.length) || (o.bars && o.bars.pts.some(p => p[1] > 0));
+    const msg = VIEW.zoom && hasAny ? "No data in this zoomed range.\nDouble-click a chart or press Back to live." : o.empty;
+    msg.split("\n").forEach((ln, i, a) => g.fillText(ln, W / 2, H / 2 + (i - (a.length - 1) / 2) * 15)); return;
   }
   let lo = o.yMin ?? Math.min(...all.map(p => p[1])), hi = o.yMax ?? Math.max(...all.map(p => p[1]));
   if (o.hline && o.hline.v != null) { lo = Math.min(lo, o.hline.v); hi = Math.max(hi, o.hline.v); }
@@ -1723,7 +1728,9 @@ for (const id in CHARTS) {
   cv.addEventListener("pointercancel", e => { end(e); delete hover[id]; scheduleDraw(); });
   cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !BRUSH) { delete hover[id]; scheduleDraw(); } });
   cv.addEventListener("blur", () => { delete hover[id]; scheduleDraw(); });
-  cv.addEventListener("wheel", e => { if (!cv._map) return; e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tAt(e.clientX)); }, { passive: false });
+  cv.addEventListener("wheel", e => {
+    if (!cv._map || !(e.ctrlKey || e.metaKey)) return;   // v13: plain wheel scrolls the page, never zooms
+    e.preventDefault(); zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tAt(e.clientX)); }, { passive: false });
   cv.addEventListener("dblclick", resetZoom);
   cv.addEventListener("keydown", e => {
     if (e.key === "+" || e.key === "=") zoomBy(0.8); else if (e.key === "-") zoomBy(1.25);
