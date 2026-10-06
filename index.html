@@ -110,9 +110,20 @@ button:disabled { opacity: .45; cursor: default; }
 .imgbox em { color: var(--bezelmuted); font-size: .86rem; font-style: normal; text-align: center; padding: 8px; }
 .imgbox .tag { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.65); color: #fff; font-size: .72rem;
   padding: 2px 7px; border-radius: 4px; font-family: var(--mono); }
-.shot.flash .imgbox { animation: flash .7s ease-out; }
-#shotF.flash .imgbox { --fl: #5CCBD0; } #shotB.flash .imgbox { --fl: #EE9BBE; }
-@keyframes flash { from { box-shadow: inset 0 0 0 3px var(--fl, #fff); } }
+/* v12: arrival blink. The frame glows twice in the camera colour when a new image lands. */
+#shotF { --fl: #5CCBD0; } #shotB { --fl: #EE9BBE; }
+.shot.flash .imgbox { animation: arrive 1.2s ease-out; }
+.shot.flash .head span { animation: label-pop 1.2s ease-out; }
+@keyframes arrive {
+  0%   { box-shadow: 0 0 0 0 transparent, inset 0 0 0 1px rgba(255,255,255,.06); }
+  10%  { box-shadow: 0 0 0 3px var(--fl), 0 0 28px 4px color-mix(in srgb, var(--fl) 70%, transparent); }
+  35%  { box-shadow: 0 0 0 1px color-mix(in srgb, var(--fl) 40%, transparent), 0 0 0 0 transparent; }
+  55%  { box-shadow: 0 0 0 3px var(--fl), 0 0 20px 2px color-mix(in srgb, var(--fl) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent, inset 0 0 0 1px rgba(255,255,255,.06); }
+}
+@keyframes label-pop { 10%, 55% { text-shadow: 0 0 12px var(--fl); } }
+.imgbox .tag.fresh { animation: tag-fresh 1.2s ease-out; }
+@keyframes tag-fresh { 0%, 40% { background: var(--fl); color: #06191C; } }
 
 .health { background: var(--bezel2); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .health .state { display: flex; align-items: center; gap: 10px; }
@@ -249,6 +260,30 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
 .la-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .la-actions button { padding: 6px 12px; font-size: .84rem; }
 
+/* ---------- Session report (v12) ---------- */
+.rp-flags { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
+.rp-flags li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: baseline; font-size: .88rem; padding: 8px 12px; border-radius: 8px; background: var(--panel2); }
+.rp-flags li i { width: 10px; height: 10px; border-radius: 50%; align-self: center; background: var(--ok); }
+.rp-flags li.bad { background: var(--badbg); } .rp-flags li.bad i { background: var(--bad); }
+.rp-flags li.warn { background: var(--warnbg); } .rp-flags li.warn i { background: var(--warn); }
+.rp-flags li small { display: block; color: var(--muted); font-size: .76rem; }
+.rp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+.rp-sec h3 { font-family: var(--num); font-size: 1.02rem; font-weight: 600; margin: 0 0 4px; }
+.rp-sec dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: .84rem; }
+.rp-sec dt { color: var(--muted); } .rp-sec dd { margin: 0; text-align: right; font-weight: 500; }
+.rp-meta { font-size: .78rem; color: var(--muted); margin: 0 0 12px; }
+.rp-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.rp-actions button { padding: 6px 12px; font-size: .84rem; }
+@media (max-width: 600px) { .rp-grid { grid-template-columns: 1fr; } }
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; }
+  header.top, #banners, .monitor, .kpis, .strip, footer, #toasts, #drop, .main > .col:first-child, .main > .col > :not(#reportCard), .rp-actions { display: none !important; }
+  .main { display: block !important; margin: 0 !important; } .main > .col { display: block !important; }
+  #reportCard { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+  .rp-flags li, .la-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 /* Tools / settings / log */
 .tools { display: flex; gap: 8px; flex-wrap: wrap; }
 details.card { padding: 0; }
@@ -277,7 +312,10 @@ dialog#lb::backdrop { background: rgba(4, 10, 12, .88); }
 
 footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: center; }
 
-@media (prefers-reduced-motion: reduce) { .toast, .pill i, .beat.on, .shot.flash .imgbox { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .toast, .pill i, .beat.on, .shot.flash .imgbox, .shot.flash .head span, .imgbox .tag.fresh { animation: none !important; }
+  .shot.flash .imgbox { outline: 3px solid var(--fl); outline-offset: 2px; }   /* static cue instead of motion */
+}
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
@@ -289,7 +327,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
   .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; } .strip div:nth-child(4) { border-left: 0; }
 }
 @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .col { display: contents; }
-  .o-loss { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
+  .o-loss { order: 1; } .o-report { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
   .o-session { order: 6; } .o-settings { order: 7; } .o-log { order: 8; } }
 @media (max-width: 600px) {
   .wrap { padding: 0 10px 24px; }
@@ -342,7 +380,8 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <dt>Delivered, last 5 min</dt><dd id="hDeliv">–</dd>
         <dt>Missing, last 5 min</dt><dd id="hMiss">–</dd>
         <dt>Last frame</dt><dd><span id="hAge">–</span><span class="beat" id="hBeat" aria-hidden="true"></span></dd>
-        <dt>Signal</dt><dd id="hRssi">–</dd>
+        <dt>Radio RSSI</dt><dd id="hRssi">–</dd>
+        <dt>BLE RSSI</dt><dd id="hBle">–</dd>
       </dl>
     </aside>
   </section>
@@ -364,9 +403,9 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       <div class="sub"><span>Min <b id="battMin">–</b></span><span>Max <b id="battMax">–</b></span><span id="battDrain"></span></div>
     </div>
     <div class="card kpi" id="kRssi"><div class="accent"></div>
-      <div class="label">Signal (RSSI)</div>
+      <div class="label">Radio signal</div>
       <div class="value" id="kRssiV">–</div>
-      <div class="sub"><span id="kRssiSrc">No source yet</span></div>
+      <div class="sub"><span id="kRssiSrc">No source yet</span><span>BLE <b id="kBleV">–</b></span></div>
     </div>
     <div class="card kpi" id="kRate"><div class="accent"></div>
       <div class="label">Throughput</div>
@@ -443,6 +482,12 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <div class="la-actions"><button id="laCsv">Download loss report (CSV)</button></div>
       </section>
 
+      <section class="card o-report" id="reportCard">
+        <h2>Session report <span class="act muted" id="rpWhen"></span></h2>
+        <div id="rpBody"><div class="empty">The report fills in as frames arrive or when you open a file.</div></div>
+        <div class="rp-actions"><button id="rpPrint">Print or save as PDF</button><button id="rpDl">Download report (HTML)</button></div>
+      </section>
+
       <section class="card o-trends">
         <div class="chart-head">
           <h2 style="margin:0">Trends</h2>
@@ -471,7 +516,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         </div>
         <div class="chart">
           <div class="chart-title"><span>RSSI</span><span class="readout" id="roRssi"></span></div>
-          <div class="legend"><span><i style="border-color:var(--violet)"></i>Reported by nRF</span><span><i class="dash" style="border-color:var(--adv)"></i>Advertising (disconnected)</span></div>
+          <div class="legend"><span><i style="border-color:var(--blue)"></i>Radio, capsule → recorder</span><span><i style="border-color:var(--violet)"></i>BLE, reported by nRF</span><span><i class="dash" style="border-color:var(--adv)"></i>Advertising (disconnected)</span></div>
           <canvas id="chRssi" tabindex="0" aria-label="RSSI over time"></canvas>
         </div>
       </section>
@@ -487,12 +532,16 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       <details class="card o-settings">
         <summary>Settings</summary>
         <div class="body form">
-          <label for="setBatt">Low-battery alert<small>Warn below this voltage. Leave empty for no alert.</small></label>
+          <label for="setBatt">Low-battery alert<small>Warn below this voltage (default 3.3 V for a Li-ion cell). Leave empty for no alert.</small></label>
           <input id="setBatt" type="number" step="0.01" min="0" max="6" placeholder="off" inputmode="decimal">
+          <label for="setRadioWeak">Weak radio signal<small>Capsule → recorder RSSI below this (dBm) is flagged.</small></label>
+          <input id="setRadioWeak" type="number" step="1" max="0" min="-140" placeholder="-100" inputmode="numeric">
           <label for="setSeq">Sequence numbering<small>How the firmware increments seq. Used for gap detection.</small></label>
           <select id="setSeq"><option value="frame">+1 per frame</option><option value="cam">+1 per camera</option><option value="off">Don't check</option></select>
           <label for="setRepair">Auto-repair JPEG header<small>Fixes the known firmware bit-slips (byte 31 slip and byte 26–27 slip; the latter only when the image data verifies). Raw .hex stays unmodified. Turn off to see raw images.</small></label>
           <select id="setRepair"><option value="on">On</option><option value="off">Off</option></select>
+          <label for="setFraming">Live framing<small>Stream: cut frames from the image data itself (recommended). INFO: use the separate header notification, as v10 did.</small></label>
+          <select id="setFraming"><option value="stream">Stream</option><option value="info">INFO (legacy)</option></select>
           <label for="setOffInt">Offline time per frame (s)<small>Frames carry no timestamp; offline times are estimated as seq × this value.</small></label>
           <input id="setOffInt" type="number" step="0.1" min="0.1" placeholder="2" inputmode="decimal">
           <label for="setStale">Stale-link warning<small>Warn when no frame arrives for this many seconds while connected.</small></label>
@@ -510,7 +559,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>Internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v12 · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -538,6 +587,11 @@ function crc16ccitt(data) {            // poly 0x1021, init 0xFFFF — same as S
   return crc;
 }
 
+function radioRssiOf(f) {                // byte 6, written by the recorder (STM32): int8 dBm, 0 = not reported
+  if (!f || f.length < 7 || !f[6]) return null;
+  const v = f[6] > 127 ? f[6] - 256 : f[6];
+  return v < 0 ? v : null;
+}
 function parseSystemData(f) {          // same byte map as parse_system_data()
   if (f.length < 27) return null;
   return {
@@ -550,6 +604,7 @@ function parseSystemData(f) {          // same byte map as parse_system_data()
     gyroXY: [f[20] | (f[21] << 8), f[22] | (f[23] << 8)],
     gyroZRaw: f[24] | (f[25] << 8),
     pillMode: f[26],
+    radioRssi: radioRssiOf(f),
   };
 }
 
@@ -700,34 +755,61 @@ function getJpeg(frame, allowRepair = true) {
 }
 
 class FrameAssembler {
-  // v10: also reports (a) stall = time from the last chunk to the header that cut the frame off,
-  // (b) "orphan" chunks that arrive with no frame header (header notification lost), and
-  // (c) overrun = more bytes than the header announced at frame end (possible mixing of two frames).
+  // v11: two framing modes.
+  //  "stream" (default): frames are cut from the data characteristic alone. Every frame the nRF sends
+  //    starts a new notification with its own header (C0 5A 01 + u32 LE total length at bytes 3..6), so the
+  //    stream is self-delimiting. The separate INFO notification is ignored for framing, which removes the
+  //    host-side reordering between the INFO and data characteristics seen in the 2026-10-06 loss CSV.
+  //  "info" (legacy, v10 behaviour): frames are cut using the INFO notification length.
+  // Reports: cut-off frame (with stall, duration and seq if the header chunk arrived), orphan chunks
+  // (data with no frame header), overrun (more bytes than announced at frame end).
   constructor(onComplete, onDropped, log) {
-    this.totalLen = null; this.buf = []; this.bufLen = 0; this.lastChunkTs = 0; this.infoTs = 0; this.orphanBytes = 0;
+    this.mode = "stream";
+    this.totalLen = null; this.buf = []; this.bufLen = 0; this.lastChunkTs = 0; this.infoTs = 0; this.orphanBytes = 0; this.head = null;
     this.onComplete = onComplete; this.onDropped = onDropped; this.log = log || (() => {});
-    this.onOrphan = null; this.onOverrun = null;
+    this.onOrphan = null; this.onOverrun = null; this.infoCount = 0;
+  }
+  static headerLen(d) {                  // declared frame length if this notification starts a frame, else 0
+    if (d.length < 26 || d[0] !== 0xC0 || d[1] !== 0x5A || d[2] !== 0x01) return 0;
+    if (d[5] !== 0) return 0;               // v12: u16 length at 3..4; byte 6 carries radio RSSI
+    const L = d[3] | (d[4] << 8);
+    return L >= 64 ? L : 0;
+  }
+  _flushOrphan() { if (this.orphanBytes) { if (this.onOrphan) this.onOrphan(this.orphanBytes); this.orphanBytes = 0; } }
+  _cut(now) {
+    if (this.totalLen === null || this.bufLen >= this.totalLen) return;
+    const seq = this.head && this.head.length >= 26 ? (this.head[24] << 8) | this.head[25] : null;
+    this.onDropped(this.bufLen, this.totalLen, now - (this.lastChunkTs || this.infoTs), now - this.infoTs, seq);
+  }
+  _start(len, now) { this.totalLen = len; this.buf = []; this.bufLen = 0; this.infoTs = now; this.lastChunkTs = 0; this.head = null; }
+  flush() {                               // link lost: report any half-received frame and reset
+    const now = Date.now(); this._cut(now); this._flushOrphan(); this.totalLen = null; this.buf = []; this.bufLen = 0; this.head = null;
   }
   onInfo(d) {
     if (d.length < 7 || d[0] !== 0xC0 || d[1] !== 0x5A) {
-      this.log(`[info] bad header, ignoring: ${Array.from(d, b => b.toString(16).padStart(2, "0")).join("")}`);
+      this.log(`[info] non-frame INFO notification, ignoring: ${Array.from(d, b => b.toString(16).padStart(2, "0")).join("")}`);
       return;
     }
+    this.infoCount++;
+    if (this.mode === "stream") return;   // framing comes from the data stream itself
     const now = Date.now();
-    if (this.orphanBytes) { if (this.onOrphan) this.onOrphan(this.orphanBytes); this.orphanBytes = 0; }
-    if (this.totalLen !== null && this.bufLen < this.totalLen)
-      this.onDropped(this.bufLen, this.totalLen, now - (this.lastChunkTs || this.infoTs), now - this.infoTs);
-    this.totalLen = (d[2] | (d[3] << 8) | (d[4] << 16) | (d[5] << 24)) >>> 0; // LE uint32 at 2..5
-    this.buf = []; this.bufLen = 0; this.infoTs = now; this.lastChunkTs = 0;
+    this._flushOrphan(); this._cut(now);
+    this._start((d[2] | (d[3] << 8) | (d[4] << 16) | (d[5] << 24)) >>> 0, now);
   }
   onChunk(d) {
-    if (this.totalLen === null) { this.orphanBytes += d.length; return; }   // chunk with no header: counted, then dropped
-    this.buf.push(d); this.bufLen += d.length; this.lastChunkTs = Date.now();
+    const now = Date.now();
+    if (this.mode === "stream") {
+      const L = FrameAssembler.headerLen(d);
+      if (L) { this._cut(now); this._flushOrphan(); this._start(L, now); }
+    }
+    if (this.totalLen === null) { this.orphanBytes += d.length; return; }   // data with no frame: counted, then dropped
+    if (!this.head) this.head = d.slice(0, 32);
+    this.buf.push(d); this.bufLen += d.length; this.lastChunkTs = now;
     if (this.bufLen >= this.totalLen) {
       const out = new Uint8Array(this.bufLen);
       let o = 0; for (const c of this.buf) { out.set(c, o); o += c.length; }
       const frame = out.slice(0, this.totalLen), extra = this.bufLen - this.totalLen;
-      this.totalLen = null; this.buf = []; this.bufLen = 0;
+      this.totalLen = null; this.buf = []; this.bufLen = 0; this.head = null;
       if (extra > 0 && this.onOverrun) this.onOverrun(extra);
       this.onComplete(frame);
     }
@@ -781,17 +863,17 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: null, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2 };
+const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream" };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
 
 // ---------------- state ----------------
 function freshState() {
   return { start: null, total: 0, f: 0, b: 0, bad: 0, lost: 0, seqGap: 0,
-    countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [],
+    countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [], rssiRadio: [],
     frameT: [], frameBytes: [], lastTs: null, lastSeq: null, lastCrc: null, maxChunk: 0,
     lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0, log: [],
-    lossDet: [], gapDet: [], orphan: [], overrun: [], link: [], fw: null, pend: new Map(), late: 0 };
+    lossDet: [], gapDet: [], orphan: [], overrun: [], link: [], fw: null, pend: new Map(), late: 0, recovered: 0 };
 }
 let S = freshState();
 const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, slipNoted: false };
@@ -926,6 +1008,12 @@ function ingestFrame(rec, live) {
   const crc = crc16ccitt(frame);
   const sysd = parseSystemData(frame);
   S.lastSeq = seq; S.lastCrc = crc;
+  if (seq != null && S.lossDet.length) {                 // v11: a frame cut off earlier and now received complete (STM32 resend)
+    for (let i = S.lossDet.length - 1, n = 0; i >= 0 && n < 50; i--, n++) {
+      const l = S.lossDet[i];
+      if (!l.rec && l.seq === seq) { l.rec = true; S.recovered = (S.recovered || 0) + 1; if (live) note("ok", `Seq ${seq} recovered by resend after a cut-off`, t); break; }
+    }
+  }
   if (seq != null && S.seqFirst == null && label !== "?") S.seqFirst = seq;
 
   if (seq != null && SET.seq !== "off" && (SET.seq === "frame" || label !== "?")) {   // v10: unknown-camera frames still count for +1/frame seq
@@ -956,7 +1044,9 @@ function ingestFrame(rec, live) {
   if (label === "F") { S.f++; S.countF.push([t, S.f]); }
   else if (label === "B") { S.b++; S.countB.push([t, S.b]); }
   else { S.bad++; if (live) note("bad", `Unknown camera id 0x${camId.toString(16)} (seq ${seq})`, t); }
-  if (sysd && label !== "?") { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }   // v10: corrupted camera byte means bytes 7–9 (incl. voltage) are unreliable
+  if (sysd && label !== "?") { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }
+  const rr = label !== "?" && sysd ? sysd.radioRssi : null;          // v12: capsule -> recorder radio RSSI
+  if (rr != null) S.rssiRadio.push([t, rr]);   // v10: corrupted camera byte means bytes 7–9 (incl. voltage) are unreliable
 
   const { jpeg, status, fix, bits } = getJpeg(frame, SET.repair);
   if (fix === "hdr") { S.hdrFixed = (S.hdrFixed || 0) + 1;
@@ -971,7 +1061,7 @@ function ingestFrame(rec, live) {
     if (live) note("bad", `JPEG header invalid and not repairable (seq ${seq}, ${label})`, t);
   }
   if (jpeg && label !== "?") {
-    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, bytes: frame.length, url: null, jstatus: status, jfix: fix };
+    const img = { ts: t, seq, label, jpeg, frame, crc, v: sysd ? sysd.voltageV : null, rr, bytes: frame.length, url: null, jstatus: status, jfix: fix };
     S.imgs.push(img);
     if (live) { showLive(img); galleryAdd(img); pvOnNew(img); } else lastRestored[label] = img;
   } else if (!jpeg && live) note("warn", `No JPEG markers in frame seq ${seq} (${label}), raw kept`, t);
@@ -983,8 +1073,8 @@ function ingestEvent(ev, live) {
   if (S.start == null) S.start = ev.ts;
   if (ev.type === "lost") {
     S.lost++; S.lostT.push(ev.ts);
-    S.lossDet.push({ t: ev.ts, got: ev.got, exp: ev.expected, stall: ev.stall ?? null, dur: ev.dur ?? null });
-    if (live) note("warn", `Incomplete frame dropped: ${ev.got}/${ev.expected} B received${ev.stall != null ? `, ${ev.stall} ms after last chunk` : ""}`, ev.ts);
+    S.lossDet.push({ t: ev.ts, got: ev.got, exp: ev.expected, stall: ev.stall ?? null, dur: ev.dur ?? null, seq: ev.seq ?? null, rec: false });
+    if (live) note("warn", `Incomplete frame dropped${ev.seq != null ? ` (seq ${ev.seq})` : ""}: ${ev.got}/${ev.expected} B received`, ev.ts);
   } else if (ev.type === "orphan") {
     S.orphan.push({ t: ev.ts, bytes: ev.bytes });
     if (live) note("warn", `${ev.bytes} B of image data arrived without a frame header (header notification lost)`, ev.ts);
@@ -1018,7 +1108,8 @@ function onLiveEvent(ev) {
   ingestEvent(ev, true); renderStats(); scheduleDraw();
 }
 const assembler = new FrameAssembler(onLiveFrame,
-  (got, expected, stall, dur) => onLiveEvent({ ts: Date.now(), type: "lost", got, expected, stall, dur }), log);
+  (got, expected, stall, dur, seq) => onLiveEvent({ ts: Date.now(), type: "lost", got, expected, stall, dur, seq }), log);
+assembler.mode = SET.framing || "stream";
 assembler.onOrphan = bytes => onLiveEvent({ ts: Date.now(), type: "orphan", bytes });
 assembler.onOverrun = extra => onLiveEvent({ ts: Date.now(), type: "overrun", extra });
 
@@ -1030,8 +1121,11 @@ function showLive(img) {
   el.onload = () => {
     const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = `#${img.seq}${img.jstatus === "repaired" ? " · fixed" : ""}`;
     box.replaceChildren(el, tag);
-    $(img.label === "F" ? "fMeta" : "bMeta").textContent = `${tClock(img.ts)} · ${kb(img.jpeg.length)}`;
-    const shot = $(img.label === "F" ? "shotF" : "shotB"); shot.classList.remove("flash"); void shot.offsetWidth; shot.classList.add("flash");
+    $(img.label === "F" ? "fMeta" : "bMeta").textContent = `${tClock(img.ts)} · ${kb(img.jpeg.length)}${img.rr != null ? ` · ${img.rr} dBm` : ""}`;
+    const shot = $(img.label === "F" ? "shotF" : "shotB");                 // v12: arrival blink on the frame
+    shot.classList.remove("flash"); void shot.offsetWidth; shot.classList.add("flash");
+    clearTimeout(shot._ft); shot._ft = setTimeout(() => shot.classList.remove("flash"), 1300);
+    tag.classList.add("fresh");
   };
   el.onerror = () => note("warn", `JPEG seq ${img.seq} (${img.label}) failed to decode`, img.ts);
   el.onclick = () => openLb(img);
@@ -1090,7 +1184,7 @@ function renderLb() {
   const d = new Date(img.ts);
   $("lbMeta").innerHTML = "";
   const items = [["Camera", img.label === "F" ? "Front" : "Back"], ["Seq", img.seq], ["Time", d.toLocaleDateString() + " " + tClock(img.ts)],
-    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? ` (header repaired: ${img.jfix})` : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"],
+    ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? ` (header repaired: ${img.jfix})` : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"], ["Radio RSSI", img.rr != null ? img.rr + " dBm" : "–"],
     ["", `${lbIdx + 1} / ${lbList.length}`]];
   for (const [k, v] of items) { const s = document.createElement("span"); s.innerHTML = k ? `${k} <b></b>` : "<b></b>"; s.querySelector("b").textContent = v; $("lbMeta").appendChild(s); }
   $("lbPrev").disabled = lbIdx <= 0; $("lbNext").disabled = lbIdx >= lbList.length - 1;
@@ -1112,6 +1206,7 @@ $("lb").addEventListener("click", e => { if (e.target === $("lb")) $("lb").close
 
 // ---------------- KPIs ----------------
 function setKpi(id, cls) { const el = $(id); el.classList.remove("ok", "warn", "bad"); if (cls) el.classList.add(cls); }
+function radioQuality(d) { const w = SET.radioWeak ?? -100; return d >= w + 20 ? 4 : d >= w + 10 ? 3 : d >= w ? 2 : 1; }   // relative to the user's weak-signal level
 function rssiQuality(d) { return d >= -60 ? 4 : d >= -70 ? 3 : d >= -80 ? 2 : 1; }   // rough rule of thumb
 function renderStats() {
   const now = nowT();
@@ -1119,7 +1214,7 @@ function renderStats() {
   $("cBad").textContent = S.bad + S.broken; $("cRep").textContent = SET.repair ? S.repaired : "off"; $("cLost").textContent = S.lost; $("cGap").textContent = SET.seq === "off" ? "off" : S.seqGap;
   setKpi("kImages", S.total ? (S.bad || S.broken ? "bad" : S.repaired ? "warn" : "ok") : null);
 
-  const att = S.total + S.lost;
+  const att = S.total + S.lost - (S.recovered || 0);
   if (att) { const p = (S.total / att) * 100; $("kDelivery").innerHTML = `${p >= 99.95 ? "100" : p.toFixed(1)}<small>%</small>`;
     setKpi("kLink", S.lost === 0 && S.seqGap === 0 ? "ok" : p >= 95 ? "warn" : "bad"); }
   else { $("kDelivery").textContent = "–"; setKpi("kLink", null); }
@@ -1134,14 +1229,20 @@ function renderStats() {
     setBanner("batt", "bad", SET.batt != null && last < SET.batt ? `Battery is ${last.toFixed(2)} V, below your ${SET.batt.toFixed(2)} V alert level.` : null);
   } else { $("battV").innerHTML = "–<small>V</small>"; $("battMin").textContent = "–"; $("battMax").textContent = "–"; $("battDrain").textContent = ""; setKpi("kBatt", null); setBanner("batt"); }
 
-  const a = S.rssiLink[S.rssiLink.length - 1], ad = S.rssiAdv[S.rssiAdv.length - 1];
-  const last = [a, ad].filter(Boolean).sort((x, y) => y[0] - x[0])[0];
-  if (last) {
-    const qn = rssiQuality(last[1]);
-    $("kRssiV").innerHTML = `${last[1]}<small>dBm</small><span class="bars q${qn}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
-    $("kRssiSrc").textContent = `${last === a ? "nRF-reported" : "advertising"} · ${fmtAge(now - last[0])} ago`;
+  const a = S.rssiLink[S.rssiLink.length - 1], ad = S.rssiAdv[S.rssiAdv.length - 1], rd = S.rssiRadio[S.rssiRadio.length - 1];
+  const bleLast = [a, ad].filter(Boolean).sort((x, y) => y[0] - x[0])[0];
+  $("kBleV").textContent = bleLast ? `${bleLast[1]} dBm` : "–";
+  if (rd) {                                   // v12: radio (capsule -> recorder) is the primary link
+    const qn = radioQuality(rd[1]);
+    $("kRssiV").innerHTML = `${rd[1]}<small>dBm</small><span class="bars q${qn}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>`;
+    $("kRssiSrc").textContent = `capsule → recorder · ${fmtAge(now - rd[0])} ago`;
     setKpi("kRssi", qn >= 3 ? "ok" : qn === 2 ? "warn" : "bad");
-  } else { $("kRssiV").textContent = "–"; $("kRssiSrc").textContent = "Needs firmware RSSI or disconnected adverts"; setKpi("kRssi", null); }
+  } else if (bleLast) {
+    const qn = rssiQuality(bleLast[1]);
+    $("kRssiV").innerHTML = `–<small>dBm</small>`;
+    $("kRssiSrc").textContent = "No radio RSSI in frames yet (recorder firmware v2 adds it)";
+    setKpi("kRssi", null); void qn;
+  } else { $("kRssiV").textContent = "–"; $("kRssiSrc").textContent = "No radio RSSI in frames yet"; setKpi("kRssi", null); }
 
   let n = 0, bytes = 0;
   for (let i = S.frameBytes.length - 1; i >= 0 && S.frameBytes[i][0] >= now - 60000; i--) { n++; bytes += S.frameBytes[i][1]; }
@@ -1202,15 +1303,21 @@ function renderHealth(now) {
     else if (pct >= 95) { st = "degraded"; word = "Degraded"; why = "Some frames are missing. See Loss analysis for the pattern."; }
     else { st = "poor"; word = "Poor"; why = "Many frames are missing. See Loss analysis for the pattern."; }
   } else if (R.connectedSince) { st = "none"; word = "Waiting"; why = "Connected. Waiting for the first frame."; }
+  const rdn = S.rssiRadio[S.rssiRadio.length - 1];
+  if ((st === "good" || st === "degraded") && rdn && now - rdn[0] < 60000 && rdn[1] < (SET.radioWeak ?? -100)) {
+    if (st === "good") { st = "degraded"; word = "Degraded"; }
+    why = `Weak radio signal from the capsule (${rdn[1]} dBm). Frames may start to go missing.`;
+  }
   box.dataset.s = st; $("hWord").textContent = word; $("hWhy").textContent = why;
   $("hDeliv").textContent = pct == null ? "–" : (pct >= 99.95 ? "100" : pct.toFixed(1)) + "%";
   $("hMiss").textContent = denom ? String(seqOn ? miss : cut) : "–";
   $("hAge").textContent = age == null ? "–" : fmtAge(age);
-  $("hRssi").textContent = rs ? `${rs[1]} dBm` : "–";
+  const rdl = S.rssiRadio[S.rssiRadio.length - 1];
+  $("hRssi").textContent = rdl ? `${rdl[1]} dBm` : "–"; $("hBle").textContent = rs ? `${rs[1]} dBm` : "–";
 }
 
 let lossTimer = null;
-function scheduleLoss() { if (!lossTimer) lossTimer = setTimeout(() => { lossTimer = null; renderLoss(); }, 500); }
+function scheduleLoss() { if (!lossTimer) lossTimer = setTimeout(() => { lossTimer = null; renderLoss(); renderReport(); }, 500); }
 
 function lossModel() {
   const downs = S.link.filter(l => !l.up && !l.manual).map(l => l.t);
@@ -1219,7 +1326,7 @@ function lossModel() {
   const seqOn = SET.seq !== "off";
   const M = seqOn ? S.gapDet.reduce((a, g) => a + g.n, 0) : null;
   const discGaps = S.gapDet.filter(g => g.n > 0 && spansDown(g)), disc = discGaps.reduce((a, g) => a + g.n, 0);
-  const mid = S.lossDet.filter(l => !nearDown(l.t)), hdr = S.orphan.filter(o => !nearDown(o.t));
+  const mid = S.lossDet.filter(l => !l.rec && !nearDown(l.t)), hdr = S.orphan.filter(o => !nearDown(o.t));
   let never = null, overflow = false;
   if (M != null) { const r = M - disc - mid.length - hdr.length; never = Math.max(0, r); overflow = r < 0; }
   const evT = [...S.gapDet.filter(g => g.n > 0 && !spansDown(g)).map(g => g.t), ...mid.map(l => l.t)].sort((a, b) => a - b);
@@ -1248,6 +1355,7 @@ function renderLoss() {
   const sum = parts.reduce((a, p) => a + p.n, 0) || 1;
   $("laBar").innerHTML = parts.filter(p => p.n).map(p => `<i class="${p.k}" style="width:${(p.n / sum) * 100}%" title="${p.name}: ${p.n}"></i>`).join("");
   $("laKey").innerHTML = parts.map(p => `<li><i class="${p.k}"></i><div>${p.name}<small>${p.d}</small></div><b>${p.n.toLocaleString()}</b></li>`).join("") +
+    (S.recovered ? `<li><i style="background:var(--ok)"></i><div>Recovered by resend<small>Cut off once, then received complete when the receiver resent it. Not counted as missing.</small></div><b>${S.recovered.toLocaleString()}</b></li>` : "") +
     (L.overflow ? `<li><i></i><div><small>Cut-off and header-loss events exceed the sequence gaps, so some events refer to frames that were later received or to frames outside the sequence check. Counts are approximate.</small></div><b></b></li>` : "");
 
   const C = S.maxChunk || null;   // notification payload size; missing bytes / C = chunks missing
@@ -1258,13 +1366,17 @@ function renderLoss() {
   const rAll = S.rssiLink.map(p => p[1]), mrL = median(rLoss), mrA = median(rAll);
   const mExp = median(L.mid.map(l => l.exp)), mRecv = median(S.frameBytes.map(f => f[1]));
   const longest = S.gapDet.reduce((a, g) => Math.max(a, g.n), 0);
+  const nearRadio = t => { let best = null, bd = Infinity; for (const [ts, v] of S.rssiRadio) { const d = Math.abs(ts - t); if (d < bd && d <= 30000) { bd = d; best = v; } } return best; };
+  const rGap = S.gapDet.filter(g => g.n > 0).map(g => nearRadio(g.prevT ?? g.t)).filter(v => v != null);
+  const mrG = median(rGap), mrR = median(S.rssiRadio.map(p => p[1]));
   const unexpected = L.downs.length;
   const cell = (label, val, sub) => `<div class="la-cell"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
   $("laGrid").innerHTML = [
     cell("Delivered by sequence", L.M != null && att ? (((S.seqN || 0) / att) * 100).toFixed(2) + "%" : "–", L.M != null ? `${(S.seqN || 0).toLocaleString()} received${S.late ? `, ${S.late} out of order` : ""}` : "Sequence check is off"),
     cell("Losses in bursts", L.evT.length ? Math.round((L.burst / L.evT.length) * 100) + "%" : "–", "within 10 s of another loss"),
     cell("Missing per cut-off frame", mMiss == null ? "–" : `${mMiss} chunk${mMiss === 1 ? "" : "s"}`, C ? `median; chunk = ${C} B. ${missCh.length ? Math.round((small / missCh.length) * 100) + "% miss ≤ 2 chunks" : ""}` : "Needs live chunk data"),
-    cell("Signal at loss", mrL == null ? "–" : `${Math.round(mrL)} dBm`, mrA == null ? "Needs firmware RSSI" : `session median ${Math.round(mrA)} dBm`),
+    cell("Radio signal before gaps", mrG == null ? "–" : `${Math.round(mrG)} dBm`, mrR == null ? "Needs recorder firmware v2" : `session median ${Math.round(mrR)} dBm`),
+    cell("BLE signal at loss", mrL == null ? "–" : `${Math.round(mrL)} dBm`, mrA == null ? "Needs nRF RSSI characteristic" : `session median ${Math.round(mrA)} dBm`),
     cell("Size of cut-off frames", mExp == null ? "–" : kb(mExp), mRecv == null ? "" : `received frames ${kb(mRecv)}`),
     cell("Unexpected link losses", OFF.active ? "–" : String(unexpected), longest ? `longest gap ${longest} frame${longest === 1 ? "" : "s"}` : ""),
   ].join("");
@@ -1281,8 +1393,9 @@ function renderLoss() {
     if (small / missCh.length >= 0.6) H.push({ c: "warn", t: "Cut-off frames are almost complete: one or two chunks are missing from the middle.", s: "This is the typical pattern when the firmware drops a notification because the TX queue is full and does not retry. Confirm by counting NRF_ERROR_RESOURCES from sd_ble_gatts_hvx(). Hypothesis until the firmware counter confirms it." });
     else if (early / missCh.length >= 0.5) H.push({ c: "warn", t: "Transfers stop partway through the frame.", s: "Points to the stream stopping (link trouble, capsule busy or resetting, PC sleep or tab throttling) rather than single dropped notifications." });
   }
-  if (share(L.hdr.length) >= 0.15) H.push({ c: "warn", t: "Frame headers are being lost.", s: "The header goes on its own characteristic. Sending it inside the first data chunk removes this failure mode." });
+  if (share(L.hdr.length) >= 0.15) H.push({ c: "warn", t: "Image data is arriving without a frame start.", s: SET.framing === "info" ? "In INFO framing this usually means the header and data notifications were reordered by the host. Switch Live framing to Stream in Settings." : "In stream framing this means the first chunk of a frame was lost on the link." });
   if (!OFF.active && L.never != null && share(L.never) >= 0.4) H.push({ c: "warn", t: "Most gaps leave no trace on the link.", s: "Compare against the flash dump: if those sequence numbers are in flash, the loss is in BLE transmission; if not, the capsule never captured them." });
+  if (mrG != null && mrR != null && mrR - mrG >= 6) H.push({ c: "warn", t: `Gaps follow weaker radio signal (${Math.round(mrG)} vs ${Math.round(mrR)} dBm).`, s: "The capsule → recorder radio link is losing frames: antenna orientation, distance or body attenuation." });
   if (mrL != null && mrA != null && mrA - mrL >= 6) H.push({ c: "warn", t: `Losses happen at weaker signal (${Math.round(mrL)} vs ${Math.round(mrA)} dBm).`, s: "RF margin is a factor: antenna, enclosure, distance." });
   if (mExp != null && mRecv != null && mExp > mRecv * 1.15) H.push({ c: "", t: "Larger frames are cut off more often.", s: "Longer transfers spend more time exposed to queue overflow or link trouble. Higher throughput (2M PHY, larger MTU and data length) shortens that window." });
   if (L.evT.length >= 5 && L.burst / L.evT.length >= 0.6) H.push({ c: "", t: "Losses come in bursts rather than evenly.", s: "Bursts point to events (movement, interference, CPU load) rather than a constant bit error rate." });
@@ -1316,17 +1429,88 @@ function drawLossStrip(L) {
   g.fillText(`peak ${mx}/bin`, 2, 1);
 }
 
+// ---------------- session report (v12) ----------------
+function esc(x) { return String(x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function reportData() {
+  const L = lossModel(), seqN = S.seqN || 0, att = seqN + (L.M || 0);
+  const rr = S.rssiRadio.map(p => p[1]), weak = SET.radioWeak ?? -100;
+  const bv = S.batt.map(p => p[1]);
+  const firstBelow = th => { const i = S.imgs.find(m => m.v != null && m.v < th); return i ? i.seq : null; };
+  const nearRadio = t => { let best = null, bd = Infinity; for (const [ts, v] of S.rssiRadio) { const d = Math.abs(ts - t); if (d < bd && d <= 30000) { bd = d; best = v; } } return best; };
+  const rGap = S.gapDet.filter(g => g.n > 0).map(g => nearRadio(g.prevT ?? g.t)).filter(v => v != null);
+  return { L, seqN, att, rr, weak, bv, rGap,
+    below30: firstBelow(3.0), below33: firstBelow(3.3), n30: S.imgs.filter(m => m.v != null && m.v < 3.0).length,
+    notShown: Math.max(0, S.total - S.imgs.length), downs: L.downs.length, cut: L.mid.length };
+}
+function reportFindings(d) {
+  const F = [], pct = (a, b) => b ? ((a / b) * 100).toFixed(2) + "%" : "–";
+  if (d.below30 != null) F.push({ c: "bad", t: `Battery fell below 3.0 V from seq ${d.below30} (${d.n30} frames, minimum ${Math.min(...d.bv).toFixed(2)} V).`, s: "For a Li-ion cell this is over-discharge: risk of cell damage and swelling. Check the capsule's under-voltage cutoff." });
+  else if (d.below33 != null) F.push({ c: "warn", t: `Battery fell below 3.3 V from seq ${d.below33}.`, s: "Approaching the end of usable capacity." });
+  if (d.L.M) F.push({ c: d.att && d.L.M / d.att > 0.005 ? "bad" : "warn", t: `${d.L.M.toLocaleString()} frame(s) missing (${pct(d.L.M, d.att)}).`, s: "See Loss analysis for where they were lost." });
+  if (d.rr.length) { const wk = d.rr.filter(v => v < d.weak).length;
+    if (wk / d.rr.length > 0.1) F.push({ c: "warn", t: `Radio signal was weak for ${pct(wk, d.rr.length)} of frames (below ${d.weak} dBm).`, s: "Capsule → recorder link margin is low." }); }
+  if (S.overrun.length) F.push({ c: "warn", t: `${S.overrun.length} frame(s) ended with more bytes than announced.`, s: "Possible mixing of two frames; treat those images with caution." });
+  if (S.total && S.repaired / S.total > 0.05) F.push({ c: "warn", t: `${pct(S.repaired, S.total)} of frames needed a header repair.`, s: "Bit-slips originate before the recorder (capsule camera path). Images were verified before display." });
+  if (d.notShown) F.push({ c: "warn", t: `${d.notShown} frame(s) could not be shown as images.`, s: "Corrupted camera byte or image data damaged beyond safe repair." });
+  if (!F.length) F.push({ c: "", t: S.total ? "No issues found in this session." : "No data yet.", s: "" });
+  return F;
+}
+function reportHTML() {
+  const d = reportData(), F = reportFindings(d), med = median(d.rr), bmed = median(S.rssiLink.map(p => p[1]));
+  const dur = S.start && S.lastTs ? fmtAge(S.lastTs - S.start) : "–";
+  const when = S.start ? `${new Date(S.start).toLocaleString()} → ${S.lastTs ? new Date(S.lastTs).toLocaleTimeString() : "…"}` : "–";
+  const sec = (title, rows) => `<div class="rp-sec"><h3>${esc(title)}</h3><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl></div>`;
+  const dash = v => v == null || v === "" ? "–" : v;
+  return `<p class="rp-meta">${esc(OFF.active ? `File: ${OFF.names}` : "Live BLE session")} · ${esc(when)} · ${esc(dur)}${OFF.active ? " · times estimated from seq" : ""}</p>
+<ul class="rp-flags">${F.map(f => `<li class="${f.c}"><i></i><div>${esc(f.t)}${f.s ? `<small>${esc(f.s)}</small>` : ""}</div></li>`).join("")}</ul>
+<div class="rp-grid">
+${sec("Images", [["Received", S.total.toLocaleString()], ["Front / back", `${S.f.toLocaleString()} / ${S.b.toLocaleString()}`], ["Seq range", S.lastSeq == null ? "–" : `${S.seqFirst ?? "?"} → ${S.lastSeq}`],
+  ["Missing", d.L.M == null ? "check off" : d.L.M.toLocaleString()], ["Delivered", d.att ? ((d.seqN / d.att) * 100).toFixed(2) + "%" : "–"], ["Out of order (closed)", String(S.late || 0)]])}
+${sec("Radio, capsule → recorder", [["Samples", d.rr.length ? d.rr.length.toLocaleString() : "none (needs recorder v2)"], ["Min / median / max", d.rr.length ? `${Math.min(...d.rr)} / ${Math.round(med)} / ${Math.max(...d.rr)} dBm` : "–"],
+  [`Below ${d.weak} dBm`, d.rr.length ? ((d.rr.filter(v => v < d.weak).length / d.rr.length) * 100).toFixed(1) + "%" : "–"], ["Median before gaps", d.rGap.length ? `${Math.round(median(d.rGap))} dBm` : "–"]])}
+${sec("BLE, recorder → this PC", OFF.active ? [["Not applicable", "saved file"]] : [["Framing", SET.framing === "info" ? "INFO (legacy)" : "Stream"], ["Cut-off frames", String(d.cut)], ["Recovered by resend", String(S.recovered || 0)],
+  ["Unexpected link losses", String(d.downs)], ["Median BLE RSSI", bmed == null ? "–" : `${Math.round(bmed)} dBm`]])}
+${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[d.bv.length - 1].toFixed(2)} V` : "–"], ["Minimum", d.bv.length ? `${Math.min(...d.bv).toFixed(2)} V` : "–"],
+  ["First below 3.3 V", dash(d.below33 != null ? `seq ${d.below33}` : null)], ["First below 3.0 V", dash(d.below30 != null ? `seq ${d.below30}` : null)]])}
+${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
+  ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
+</div>`;
+}
+function renderReport() {
+  if (!$("reportCard")) return;
+  $("rpWhen").textContent = S.total ? `updated ${tClock(Date.now())}` : "";
+  if (!S.total) { $("rpBody").innerHTML = `<div class="empty">The report fills in as frames arrive or when you open a file.</div>`; return; }
+  $("rpBody").innerHTML = reportHTML();
+}
+function printReport() {
+  renderReport();
+  const root = document.documentElement, prev = root.dataset.theme;
+  const restore = () => { if (prev) root.dataset.theme = prev; else delete root.dataset.theme; window.removeEventListener("afterprint", restore); };
+  root.dataset.theme = "light"; window.addEventListener("afterprint", restore); window.print();
+}
+function downloadReport() {
+  const css = `body{font:14px/1.45 system-ui,sans-serif;color:#102328;max-width:900px;margin:24px auto;padding:0 16px}h1{font-size:1.4rem;margin:0 0 4px}
+.rp-meta{color:#56696E;font-size:.8rem}.rp-flags{list-style:none;padding:0;display:grid;gap:6px}.rp-flags li{display:grid;grid-template-columns:10px 1fr;gap:10px;padding:8px 12px;border-radius:8px;background:#F3F7F6}
+.rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
+.rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
+.rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v12</p></body></html>`;
+  download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
+}
+
 function exportLossCsv() {
-  const L = lossModel(), rows = [["time_iso", "type", "seq_from", "seq_to", "frames_missing", "bytes_received", "bytes_expected", "stall_ms", "rssi_dbm", "note"]];
+  const L = lossModel(), rows = [["time_iso", "type", "seq_from", "seq_to", "frames_missing", "bytes_received", "bytes_expected", "stall_ms", "ble_rssi_dbm", "note", "radio_rssi_dbm"]];
+  const nearRadio = t => { let best = null, bd = Infinity; for (const [ts, v] of S.rssiRadio) { const d = Math.abs(ts - t); if (d < bd && d <= 30000) { bd = d; best = v; } } return best ?? ""; };
   const iso = t => new Date(t).toISOString();
   const spans = g => g.prevT != null && L.downs.some(d => d > g.prevT && d <= g.t);
-  for (const gp of S.gapDet.filter(g => g.n > 0)) rows.push([iso(gp.t), "seq_gap", gp.from, gp.to, gp.n, "", "", "", nearestRssi(gp.t) ?? "", spans(gp) ? "spans link loss" : ""]);
-  for (const l of S.lossDet) rows.push([iso(l.t), "cut_off", "", "", "", l.got, l.exp, l.stall ?? "", nearestRssi(l.t) ?? "", ""]);
+  for (const gp of S.gapDet.filter(g => g.n > 0)) rows.push([iso(gp.t), "seq_gap", gp.from, gp.to, gp.n, "", "", "", nearestRssi(gp.t) ?? "", spans(gp) ? "spans link loss" : "", nearRadio(gp.prevT ?? gp.t)]);
+  for (const l of S.lossDet) rows.push([iso(l.t), "cut_off", l.seq ?? "", "", "", l.got, l.exp, l.stall ?? "", nearestRssi(l.t) ?? "", l.rec ? "recovered by resend" : ""]);
   for (const o of S.orphan) rows.push([iso(o.t), "header_lost", "", "", "", o.bytes, "", "", nearestRssi(o.t) ?? "", ""]);
   for (const o of S.overrun) rows.push([iso(o.t), "overrun", "", "", "", "", "", "", "", `${o.extra} B extra`]);
   for (const k of S.link) rows.push([iso(k.t), k.up ? "link_up" : "link_down", "", "", "", "", "", "", "", k.manual ? "by user" : ""]);
+  for (const r of rows) while (r.length < rows[0].length) r.push("");
   rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0] < b[0] ? -1 : 1));
-  if (OFF.active) rows.push(["", "", "", "", "", "", "", "", "", "Offline file: times are estimated from seq"]);
+  if (OFF.active) rows.push(["", "", "", "", "", "", "", "", "", "Offline file: times are estimated from seq", ""]);
   const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(",")).join("\n");
   download(new Blob([csv], { type: "text/csv" }), `peek1_loss_${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
 }
@@ -1477,11 +1661,12 @@ const CHARTS = {
     read: t => { const p = valueAt(S.batt, t); return p ? `${tClock(p[0])} · ${p[1].toFixed(2)} V` : ""; },
     now: () => S.batt.length ? `now ${S.batt[S.batt.length - 1][1].toFixed(2)} V` : "" },
   chRssi: { ro: "roRssi", o: () => ({
-      series: [{ pts: S.rssiLink, color: "--violet", dots: true }, { pts: S.rssiAdv, color: "--adv", dash: true, dots: true }],
+      series: [{ pts: S.rssiRadio, color: "--blue", dots: true }, { pts: S.rssiLink, color: "--violet", dots: true }, { pts: S.rssiAdv, color: "--adv", dash: true, dots: true }],
+      hline: S.rssiRadio.length ? { v: SET.radioWeak ?? -100, color: "--warn", label: `weak radio ${SET.radioWeak ?? -100} dBm` } : null,
       minSpan: 10, yFmt: v => Math.round(v) + " dBm",
-      empty: "No RSSI yet.\nBrowsers can't read RSSI of a connected device:\nneeds nRF firmware to report it (see notes)." }),
-    read: t => { const a = valueAt(S.rssiLink, t), b = valueAt(S.rssiAdv, t);
-      return [a && Math.abs(a[0] - t) < 15000 ? `nRF ${a[1]}` : "", b && Math.abs(b[0] - t) < 15000 ? `adv ${b[1]}` : ""].filter(Boolean).join(" · "); },
+      empty: "No RSSI yet.\nRadio RSSI comes in each frame (byte 6) from recorder firmware v2." }),
+    read: t => { const r = valueAt(S.rssiRadio, t), a = valueAt(S.rssiLink, t), b = valueAt(S.rssiAdv, t);
+      return [r && Math.abs(r[0] - t) < 15000 ? `radio ${r[1]}` : "", a && Math.abs(a[0] - t) < 15000 ? `BLE ${a[1]}` : "", b && Math.abs(b[0] - t) < 15000 ? `adv ${b[1]}` : ""].filter(Boolean).join(" · "); },
     now: () => "" },
 };
 let drawQueued = false;
@@ -1566,7 +1751,7 @@ setInterval(() => { renderStats(); scheduleDraw(); }, 1000);
 const P = { mode: "FB", list: [], idx: 0, playing: false, timer: null, cache: new Map(), rec: null, track: null, token: 0 };
 const PANEL_W = 640, PANEL_H = 480;
 function pvSource() {
-  let l = P.mode === "FB" ? S.imgs : S.imgs.filter(i => i.label === P.mode);
+  let l = P.mode === "FB" ? S.imgs.slice() : S.imgs.filter(i => i.label === P.mode);   // v11: copy, so pvOnNew never pushes into S.imgs itself
   if ($("pvRange").value === "chart") { const [a, b] = windowRange(); l = l.filter(i => i.ts >= a && i.ts <= b); }
   return l;
 }
@@ -1787,6 +1972,7 @@ async function onConnClicked() {
     if (!device) {
       device = await navigator.bluetooth.requestDevice({ filters: [{ name: DEVICE_NAME }, { services: [SERVICE_UUID] }], optionalServices: [SERVICE_UUID] });
       device.addEventListener("gattserverdisconnected", () => {
+        assembler.flush();
         onLiveEvent({ ts: Date.now(), type: "link", up: false, manual: manualDisconnect });
         markDisconnected(); renderStats();
         if (manualDisconnect) { note("info", "Disconnected by user"); setPill("", "Disconnected"); setConnButton("Connect", true); }
@@ -1837,7 +2023,7 @@ async function exportZip() {
   const ev = ["timestamp_iso,type,detail"];
   for (const e of events) ev.push([new Date(e.ts).toISOString(), e.type,
     JSON.stringify(e.type === "lost" ? `${e.got}/${e.expected}` : e.type === "rssi" ? `${e.src}:${e.dbm}dBm` : `${e.level}: ${e.text}`)].join(","));
-  const att = S.total + S.lost;
+  const att = S.total + S.lost - (S.recovered || 0);
   const summary = [
     "PEEK1 Monitor session summary", `Exported: ${new Date().toISOString()}`,
     `Session start: ${S.start ? new Date(S.start).toISOString() : "-"}`, `Session length: ${S.start ? fmtAge(nowT() - S.start) : "-"}`,
@@ -1877,10 +2063,12 @@ async function clearSession() {
 // byte 7 = camera (0x11/0x22), JPEG SOI at byte 27. The scanner walks the file frame by frame and
 // resynchronises on the next valid frame after any corruption. A captured BLE stream (7-byte INFO
 // header before each frame) is also accepted: those headers are recognised and skipped.
+// v12: frame header = C0 5A 01 | len u16 LE (bytes 3..4) | 00 | radio RSSI (byte 6, int8 dBm, 0 = none)
+function frameLen16(u, i) { return u[i + 5] === 0 ? (u[i + 3] | (u[i + 4] << 8)) : 0; }
 function u32le(u, i) { return (u[i] | (u[i + 1] << 8) | (u[i + 2] << 16) | (u[i + 3] << 24)) >>> 0; }
 function isFrameAt(u, i) {
   if (i + 29 > u.length || u[i] !== 0xC0 || u[i + 1] !== 0x5A) return 0;
-  const len = u32le(u, i + 3), cam = u[i + 7];
+  const len = frameLen16(u, i), cam = u[i + 7];
   if (len < 32 || len > 2_000_000 || (cam !== CAM_FRONT && cam !== CAM_BACK) || u[i + 27] !== 0xFF || u[i + 28] !== 0xD8) return 0;
   return len;
 }
@@ -1895,8 +2083,8 @@ function nextIsBoundary(u, j) {
 }
 function headerLooksLikeFrame(u, i) {
   if (i + 29 > u.length || u[i] !== 0xC0 || u[i + 1] !== 0x5A || u[i + 2] !== 0x01) return 0;
-  const len = u32le(u, i + 3);
-  return len >= 650 && len <= 2_000_000 ? len : 0;
+  const len = frameLen16(u, i);
+  return len >= 650 ? len : 0;
 }
 function scanFrames(u, name) {
   const frames = [], issues = [];
@@ -2030,6 +2218,10 @@ function bindSettings() {
   $("setBatt").value = SET.batt ?? ""; $("setSeq").value = SET.seq; $("setStale").value = SET.stale ?? "";
   $("setRepair").value = SET.repair ? "on" : "off";
   $("setOffInt").value = SET.offInt;
+  $("setFraming").value = SET.framing || "stream";
+  $("setRadioWeak").value = SET.radioWeak ?? -100;
+  $("setRadioWeak").addEventListener("change", e => { const v = parseInt(e.target.value, 10); SET.radioWeak = Number.isFinite(v) && v < 0 ? v : -100; e.target.value = SET.radioWeak; saveSettings(); renderStats(); scheduleDraw(); });
+  $("setFraming").addEventListener("change", e => { SET.framing = e.target.value; assembler.flush(); assembler.mode = SET.framing; saveSettings(); toast(`Live framing: ${SET.framing === "stream" ? "stream" : "INFO (legacy)"}`); });
   $("setOffInt").addEventListener("change", async e => { const v = parseFloat(e.target.value); SET.offInt = v > 0 ? v : 2; e.target.value = SET.offInt; saveSettings();
     if (OFF.active) { await setSource("file"); toast("Offline times recalculated"); } });
   $("setRepair").addEventListener("change", async e => { SET.repair = e.target.value === "on"; saveSettings(); await restore(); toast(SET.repair ? "Auto-repair on" : "Auto-repair off: showing raw images"); });
@@ -2055,6 +2247,15 @@ $("btnConn").addEventListener("click", onConnClicked);
 $("btnExport").addEventListener("click", exportZip);
 $("btnClear").addEventListener("click", clearSession);
 $("laCsv").addEventListener("click", exportLossCsv);
+$("rpPrint").addEventListener("click", printReport);
+$("rpDl").addEventListener("click", downloadReport);
+// ---------- E. last-resort error guard (v12): never fail silently ----------
+function reportError(msg) {
+  if (!msg || msg === "Script error.") return;
+  try { log(`[error] ${msg}`); setBanner("err", "bad", `Something went wrong in the page: ${msg}. Frames received so far are kept in this browser. Use Export ZIP to save them, then reload.`); } catch { /* nothing left to do */ }
+}
+window.addEventListener("error", e => reportError(e.message));
+window.addEventListener("unhandledrejection", e => reportError(e.reason && e.reason.message ? e.reason.message : String(e.reason)));
 window.addEventListener("resize", () => scheduleLoss());
 applyTheme(); bindSettings();
 (async () => {
