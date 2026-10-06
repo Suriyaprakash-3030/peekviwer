@@ -285,22 +285,7 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
   .rp-flags li, .la-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
-/* ---------- Remote viewing (v14) ---------- */
 .rm-note { font-size: .84rem; color: var(--muted); margin: 0 0 12px; }
-.form.rm-form { grid-template-columns: minmax(120px, 170px) minmax(0, 1fr); }
-.form.rm-form input, .form.rm-form select { width: 100%; }
-.rm-baa { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--warnbg); }
-.rm-baa input { margin-top: 3px; }
-fieldset.rm-baa { border: 0; display: grid; gap: 8px; flex-direction: column; }
-fieldset.rm-baa legend { font-weight: 600; padding: 0; margin-bottom: 4px; float: left; width: 100%; }
-fieldset.rm-baa label { display: flex; gap: 8px; align-items: flex-start; }
-.rm-hint { margin-top: 12px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--warn); background: var(--warnbg); font-size: .86rem; }
-.rm-hint b { display: block; margin-bottom: 2px; }
-.rm-setup { margin-top: 14px; font-size: .86rem; }
-.rm-setup summary { cursor: pointer; font-weight: 500; }
-.rm-setup ol { padding-left: 20px; } .rm-setup li { margin: 6px 0; }
-.rm-sql { font-family: var(--mono); font-size: .74rem; background: var(--panel2); padding: 10px 12px; border-radius: 8px; overflow-x: auto; white-space: pre; }
-#rmState.on { color: var(--ok); font-weight: 600; } #rmState.err { color: var(--bad); font-weight: 600; }
 .crtabs { display: none; }
 
 /* ---------- Control room: desktop, one screen, no page scroll (v14) ---------- */
@@ -335,7 +320,7 @@ fieldset.rm-baa label { display: flex; gap: 8px; align-items: flex-start; }
   .crtabs button[data-alert]::after { content: attr(data-alert); position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px;
     border-radius: 9px; background: var(--bad); color: #fff; font-size: .68rem; line-height: 17px; text-align: center; }
   .main .card, .main details.card { display: none; flex: none; }
-  .main .card.tab-on, .main details.card.tab-on { display: block; }
+  .main .card.tab-on, .main details.card.tab-on { display: block; align-self: stretch; width: 100%; }
   .gallery { max-height: none; }
   footer { display: none; }
 }
@@ -489,7 +474,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
     <nav class="crtabs" id="crTabs" role="tablist" aria-label="Panels">
       <button role="tab" data-tab="trends">Trends</button><button role="tab" data-tab="loss">Loss</button><button role="tab" data-tab="report">Report</button>
       <button role="tab" data-tab="play">Playback</button><button role="tab" data-tab="gallery">Gallery</button><button role="tab" data-tab="events">Events</button>
-      <button role="tab" data-tab="remote">Remote</button><button role="tab" data-tab="setup">Setup</button>
+      <button role="tab" data-tab="setup">Setup</button>
     </nav>
     <div class="col">
 
@@ -555,57 +540,6 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <div class="rp-actions"><button id="rpPrint">Print or save as PDF</button><button id="rpDl">Download report (HTML)</button></div>
       </section>
 
-      <section class="card o-remote" id="remoteCard">
-        <h2>Remote viewing <span class="act muted" id="rmState">Off</span></h2>
-        <p class="rm-note">Watch this session from any device, anywhere. This PC (the gateway) relays every frame end-to-end encrypted. Viewers sign in and enter the room passphrase; the relay never sees images.</p>
-        <div class="form rm-form">
-          <label for="rmRole">This device</label>
-          <select id="rmRole"><option value="off">Off</option><option value="gateway">Gateway: share this session</option><option value="viewer">Viewer: watch a session</option></select>
-          <label for="rmBackend">Relay</label>
-          <select id="rmBackend"><option value="supabase">Supabase Realtime</option><option value="local">Local test (tabs in this browser only)</option></select>
-          <label for="rmUrl" class="sb">Project URL</label><input id="rmUrl" class="sb" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false">
-          <label for="rmKey" class="sb">Publishable key</label><input id="rmKey" class="sb" placeholder="sb_publishable_…" autocomplete="off" spellcheck="false">
-          <label for="rmEmail" class="sb">Email</label><input id="rmEmail" class="sb" type="email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
-          <label for="rmPass" class="sb">Password</label><input id="rmPass" class="sb" type="password" autocomplete="current-password">
-          <label for="rmRoom">Room<small>Same name on the gateway and every viewer.</small></label><input id="rmRoom" placeholder="e.g. bench-a" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-          <label for="rmSecret">Room passphrase<small>Encrypts frames end to end. At least 12 characters. Never sent or stored.</small></label><input id="rmSecret" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-        </div>
-        <fieldset class="rm-baa" id="rmBaaRow"><legend>What will this gateway share?</legend>
-          <label><input type="radio" name="rmMode" id="rmModeTest" value="test"> <span><b>Test data only.</b> Only replayed .bin files are sent. Live capsule frames stay on this PC. Use this with a free or test project.</span></label>
-          <label><input type="radio" name="rmMode" id="rmBaa" value="patient"> <span><b>Patient data.</b> This Supabase project has the HIPAA add-on enabled and a signed BAA.</span></label>
-        </fieldset>
-        <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button><button id="rmLink" hidden>Copy viewer link</button></div>
-        <div class="rm-hint" id="rmHint" hidden></div>
-        <div class="la-grid" id="rmStats"></div>
-        <div class="rm-sim">
-          <div class="la-sub">Test feed</div>
-          <p class="rm-note">No capsule at hand? Replay a recorded .bin file as if it were arriving live over BLE. It takes the same path as real data, so a gateway shares it like a real session. Viewers are told it is a replay.</p>
-          <div class="la-actions">
-            <button id="simBtn">Replay a .bin file as live…</button>
-            <label class="muted">Speed <select id="simSpeed"><option value="1">1× (real time)</option><option value="5">5×</option><option value="20">20×</option></select></label>
-            <button id="simStop" hidden>Stop replay</button>
-          </div>
-          <div class="rm-note" id="simInfo" style="margin-top:8px"></div>
-          <input type="file" id="simFile" accept=".bin,.dat,.raw,application/octet-stream" hidden>
-        </div>
-        <details class="rm-setup"><summary>One-time Supabase setup</summary>
-          <ol>
-            <li>Use the Team plan with the HIPAA add-on, and sign the BAA in the dashboard <b>before</b> any patient data is sent. Encryption alone does not replace the BAA.</li>
-            <li>Authentication: turn off public sign-ups and create an account for each person allowed to view.</li>
-            <li>Run this once in the SQL editor. It lets signed-in users join only private rooms named <code>peek1:…</code>:</li>
-          </ol>
-<pre class="rm-sql">create policy "peek1 rooms: receive"
-on realtime.messages for select to authenticated
-using ( (select realtime.topic()) like 'peek1:%'
-        and realtime.messages.extension = 'broadcast' );
-
-create policy "peek1 rooms: send"
-on realtime.messages for insert to authenticated
-with check ( (select realtime.topic()) like 'peek1:%'
-             and realtime.messages.extension = 'broadcast' );</pre>
-          <p class="rm-note">Then copy the Project URL and publishable key from Project Settings → API. Both are public by design; access is controlled by sign-in and the policies above. Share the room passphrase in person or by phone, never in the same message as the link.</p>
-        </details>
-      </section>
 
       <section class="card o-trends">
         <div class="chart-head">
@@ -638,6 +572,18 @@ with check ( (select realtime.topic()) like 'peek1:%'
           <div class="legend"><span><i style="border-color:var(--blue)"></i>Radio, capsule → recorder</span><span><i style="border-color:var(--violet)"></i>BLE, reported by nRF</span><span><i class="dash" style="border-color:var(--adv)"></i>Advertising (disconnected)</span></div>
           <canvas id="chRssi" tabindex="0" aria-label="RSSI over time"></canvas>
         </div>
+      </section>
+
+      <section class="card o-sim" id="simCard">
+        <h2>Test feed</h2>
+                  <p class="rm-note">No capsule at hand? Replay a recorded .bin file as if it were arriving live over BLE. It takes exactly the same path as real BLE data, so every screen, the loss analysis and the report behave as in a real run.</p>
+          <div class="la-actions">
+            <button id="simBtn">Replay a .bin file as live…</button>
+            <label class="muted">Speed <select id="simSpeed"><option value="1">1× (real time)</option><option value="5">5×</option><option value="20">20×</option></select></label>
+            <button id="simStop" hidden>Stop replay</button>
+          </div>
+          <div class="rm-note" id="simInfo" style="margin-top:8px"></div>
+          <input type="file" id="simFile" accept=".bin,.dat,.raw,application/octet-stream" hidden>
       </section>
 
       <section class="card o-session">
@@ -678,7 +624,7 @@ with check ( (select realtime.topic()) like 'peek1:%'
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v18 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v19 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -982,8 +928,10 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream", crTab: "trends", rmBackend: "supabase", rmUrl: "", rmKey: "", rmRoom: "", rmBaaUrl: "" };
+const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream", crTab: "trends" };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
+for (const k of ["rmBackend", "rmUrl", "rmKey", "rmRoom", "rmBaaUrl"]) delete SET[k];   // v19: remote viewing removed
+if (SET.crTab === "remote") SET.crTab = "setup";
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
 
 // ---------------- state ----------------
@@ -1069,7 +1017,6 @@ function openDb() {
 const OFF = { active: false, names: "", frames: [], events: [], inputs: null, issues: 0 };
 function nowT() { return OFF.active ? (S.lastTs ?? Date.now()) : Date.now(); }
 function put(store, rec) {
-  if (typeof RM !== "undefined" && RM.role === "viewer") return;   // v14: remote viewers keep nothing on the device
   if (OFF.active) return;
   mem[store].push(rec);
   if (!db) return;
@@ -1219,13 +1166,12 @@ function checkBattery(v, t) {
 function onLiveFrame(frame) {
   const rec = { ts: Date.now(), frame };
   if (frame.length >= 26) rec.seq = (frame[24] << 8) | frame[25];
-  put("frames", rec); ingestFrame(rec, true); rmSendFrame(rec);
+  put("frames", rec); ingestFrame(rec, true);
   const hb = $("hBeat"); if (hb) { hb.classList.remove("on"); void hb.offsetWidth; hb.classList.add("on"); }
   $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
 }
 function onLiveEvent(ev) {
   if (ev.type !== "note") put("events", ev);
-  rmSendEvent(ev);
   ingestEvent(ev, true); renderStats(); scheduleDraw();
 }
 const assembler = new FrameAssembler(onLiveFrame,
@@ -1582,7 +1528,7 @@ function reportHTML() {
   const when = S.start ? `${new Date(S.start).toLocaleString()} → ${S.lastTs ? new Date(S.lastTs).toLocaleTimeString() : "…"}` : "–";
   const sec = (title, rows) => `<div class="rp-sec"><h3>${esc(title)}</h3><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl></div>`;
   const dash = v => v == null || v === "" ? "–" : v;
-  return `<p class="rp-meta">${S.simulated ? "<b>SIMULATED FEED (recorded frames replayed)</b> · " : ""}${esc(OFF.active ? `File: ${OFF.names}` : RM.role === "viewer" ? `Remote viewer, room ${RM.room}` : "Live BLE session")} · ${esc(when)} · ${esc(dur)}${OFF.active ? " · times estimated from seq" : ""}</p>
+  return `<p class="rp-meta">${S.simulated ? "<b>SIMULATED FEED (recorded frames replayed)</b> · " : ""}${esc(OFF.active ? `File: ${OFF.names}` : "Live BLE session")} · ${esc(when)} · ${esc(dur)}${OFF.active ? " · times estimated from seq" : ""}</p>
 <ul class="rp-flags">${F.map(f => `<li class="${f.c}"><i></i><div>${esc(f.t)}${f.s ? `<small>${esc(f.s)}</small>` : ""}</div></li>`).join("")}</ul>
 <div class="rp-grid">
 ${sec("Images", [["Received", S.total.toLocaleString()], ["Front / back", `${S.f.toLocaleString()} / ${S.b.toLocaleString()}`], ["Seq range", S.lastSeq == null ? "–" : `${S.seqFirst ?? "?"} → ${S.lastSeq}`],
@@ -1596,7 +1542,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v18 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v19 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1617,7 +1563,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v18, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v19, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2096,9 +2042,7 @@ async function onConnClicked() {
     setPill("", "Disconnected"); setConnButton("Connect", true); return;
   }
   if (OFF.active) return;
-  if (RM.role === "viewer") { toast("Stop remote viewing before connecting a capsule here"); return; }
   if (SIM.on) simStop("real capsule connecting");
-  if (RM.role === "gateway" && RM.mode === "test") toast("Remote is in test-data mode: this capsule's frames will not be shared");
   if (!navigator.bluetooth) { showSupportBanner(); return; }
   manualDisconnect = false;
   try {
@@ -2378,7 +2322,7 @@ async function restore() {
 
 // ---------------- control room tabs (v14) ----------------
 const CR_TABS = { trends: [".o-trends"], loss: [".o-loss"], report: [".o-report"], play: [".o-play"], gallery: [".o-gallery"],
-  events: [".o-events"], remote: [".o-remote"], setup: [".o-session", ".o-settings", ".o-log"] };
+  events: [".o-events"], setup: [".o-sim", ".o-session", ".o-settings", ".o-log"] };
 function crSelect(tab) {
   if (!CR_TABS[tab]) tab = "trends";
   SET.crTab = tab; saveSettings();
@@ -2389,255 +2333,9 @@ function crSelect(tab) {
 }
 function crBadge(tab, n) { const b = document.querySelector(`#crTabs [data-tab="${tab}"]`); if (!b) return; if (n > 0) b.dataset.alert = n > 99 ? "99+" : String(n); else delete b.dataset.alert; }
 
-// ---------------- remote viewing (v14) ----------------
-// Gateway: every frame/event from the BLE capsule session is sealed with AES-256-GCM (key from the room
-// passphrase via PBKDF2-SHA256, 310k iterations, salt = room) and broadcast on a private, sign-in-protected
-// Supabase Realtime channel. Viewers decrypt and render in memory only (nothing stored on the viewer).
-// Encryption is defence-in-depth: the relay still transmits ePHI, so a BAA with the relay provider is required.
-const RM = { role: "off", t: null, key: null, aad: null, room: "", user: "", sent: 0, recv: 0, bad: 0, sendErr: 0, n: 0,
-  viewers: new Map(), lastHb: 0, gw: null, timers: [], seen: new Set(), id: Math.random().toString(36).slice(2, 10), client: null, clientUrl: "", firstHello: true };
-const SB_CDN = ["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"];
-function loadScript(src) { return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.async = true; el.crossOrigin = "anonymous";
-  el.onload = res; el.onerror = () => { el.remove(); rej(new Error("load failed")); }; document.head.appendChild(el); }); }
-async function loadSupabase() {
-  if (window.supabase && window.supabase.createClient) return window.supabase;
-  for (const u of SB_CDN) { try { await loadScript(u); if (window.supabase && window.supabase.createClient) return window.supabase; } catch { /* try next */ } }
-  throw new Error("Could not load the Supabase library. Check the internet connection.");
-}
-const b64e = u8 => { let x = ""; for (let i = 0; i < u8.length; i += 0x8000) x += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(x); };
-const b64d = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
-async function rmDeriveKey(pass, room) {
-  if (!window.crypto || !crypto.subtle) throw new Error("Encryption needs HTTPS (GitHub Pages is fine) or localhost.");
-  const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode("peek1-remote-v1:" + room), iterations: 310000 },
-    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-}
-async function rmSeal(obj) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: RM.aad }, RM.key, new TextEncoder().encode(JSON.stringify(obj))));
-  return { v: 1, iv: b64e(iv), ct: b64e(ct) };
-}
-async function rmOpen(m) {
-  if (!m || m.v !== 1 || typeof m.iv !== "string" || typeof m.ct !== "string") throw new Error("not a PEEK1 message");
-  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64d(m.iv), additionalData: RM.aad }, RM.key, b64d(m.ct));
-  return JSON.parse(new TextDecoder().decode(pt));
-}
-function localTransport(room, onMsg) {
-  const bc = new BroadcastChannel("peek1-remote:" + room); bc.onmessage = e => onMsg(e.data);
-  return { label: "Local test (this browser)", send: async m => bc.postMessage(m), close: async () => bc.close() };
-}
-async function rmPreflight(cfg) {
-  const host = cfg.url.replace(/^https:\/\//, "");
-  let r;
-  try {
-    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
-    r = await fetch(`${cfg.url}/auth/v1/health`, { headers: { apikey: cfg.key }, signal: ctl.signal, cache: "no-store" });
-    clearTimeout(to);
-  } catch (e) {
-    throw new Error(`Cannot reach ${host}. Check that the Project URL is right (https://xxxx.supabase.co, not the dashboard link), the project is not paused (dashboard → Restore), and no ad-blocker, VPN or firewall is blocking supabase.co. Try once on mobile data.`);
-  }
-  if (r.status === 401 || r.status === 403) throw new Error(`Reached ${host}, but the key was refused. Copy the publishable (or anon) key again from Project Settings → API.`);
-  if (r.status === 404) throw new Error(`${host} answered "not found". Check the Project URL, or the project may still be starting.`);
-  if (r.status >= 500) throw new Error(`${host} is having a problem (HTTP ${r.status}). If the project was paused, restore it in the dashboard and wait a minute.`);
-}
-async function supabaseTransport(cfg, onMsg) {
-  if (!navigator.onLine) throw new Error("This device is offline.");
-  await rmPreflight(cfg);
-  const sb = await loadSupabase();
-  if (!RM.client || RM.clientUrl !== cfg.url) { RM.client = sb.createClient(cfg.url, cfg.key); RM.clientUrl = cfg.url; }
-  const client = RM.client;
-  let { data: { session } } = await client.auth.getSession();
-  if (!session) {
-    if (!cfg.email || !cfg.password) throw new Error("Enter your email and password to sign in.");
-    const { data, error } = await client.auth.signInWithPassword({ email: cfg.email, password: cfg.password });
-    if (error) throw new Error(/invalid login/i.test(error.message) ? "Sign-in failed: wrong email or password. Check the user under Authentication → Users." :
-      /email not confirmed/i.test(error.message) ? "Sign-in failed: this user's email is not confirmed. In Authentication → Users, confirm the user (or recreate it with Auto confirm)." :
-      `Sign-in failed: ${error.message}`);
-    session = data.session;
-  }
-  RM.user = (session.user && session.user.email) || "";
-  await client.realtime.setAuth(session.access_token);
-  const chan = client.channel("peek1:" + cfg.room, { config: { private: true, broadcast: { self: false, ack: true } } });   // v17: relay confirms each message
-  chan.on("broadcast", { event: "m" }, msg => onMsg(msg.payload));
-  await new Promise((res, rej) => {
-    const to = setTimeout(() => rej(new Error("Joining the room timed out.")), 15000);
-    chan.subscribe((status, err) => {
-      if (status === "SUBSCRIBED") { clearTimeout(to); res(); }
-      else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        clearTimeout(to);
-        rej(new Error(status === "CHANNEL_ERROR" ? `Not allowed to join this room. Check the Realtime policies and your account${err && err.message ? ` (${err.message})` : ""}.` : `Room connection ${status.toLowerCase().replace("_", " ")}.`));
-      }
-    });
-  });
-  return { label: "Supabase Realtime, private room", send: m => chan.send({ type: "broadcast", event: "m", payload: m }), close: async () => { await client.removeChannel(chan); } };
-}
-async function rmSend(obj) {
-  if (!RM.t || !RM.key) return;
-  try {
-    const r = await RM.t.send(await rmSeal(obj));
-    if (r !== undefined && r !== "ok") { RM.relayErr = (RM.relayErr || 0) + 1; RM.lastRelay = String(r);
-      if (RM.relayErr === 1) note("warn", `Remote: the relay did not accept a message (${r}). Check the "send" policy in Supabase.`); }
-    else { RM.sent++; if (r === "ok") RM.relayOk = (RM.relayOk || 0) + 1; }
-  } catch (e) { RM.sendErr++; if (RM.sendErr === 1) note("warn", `Remote: send failed (${e.message || e})`); }
-  rmRenderSoon();
-}
-function rmLiveBlocked() {                      // v17: in test-data mode only replayed files leave this PC
-  if (RM.mode !== "test" || SIM.on) return false;
-  RM.blocked++; if (RM.blocked === 1) { note("warn", "Remote: live capsule frames are not shared in test-data mode"); toast("Test-data mode: live capsule frames are not shared"); }
-  rmRender(); return true;
-}
-function rmSendFrame(rec) { if (RM.role === "gateway" && !rmLiveBlocked()) rmSend({ k: "f", ts: rec.ts, n: ++RM.n, b: b64e(rec.frame) }); }
-function rmSendEvent(ev) { if (RM.role === "gateway" && ev.type !== "note" && !(RM.mode === "test" && !SIM.on)) rmSend({ k: "e", ev }); }
-async function rmSendHistory() {
-  const recent = S.imgs.slice(-30);
-  for (const img of recent) await rmSend({ k: "f", ts: img.ts, n: "h" + img.ts, b: b64e(img.frame), hist: true });
-}
-async function rmOnMsg(raw) {
-  let m;
-  try { m = await rmOpen(raw); } catch { RM.bad++; if (RM.bad === 1) note("warn", "Remote: a message could not be decrypted. Check that the room passphrase matches."); rmRender(); return; }
-  RM.recv++;
-  if (RM.role === "viewer") {
-    if (m.k === "hb") { RM.lastHb = Date.now(); RM.gw = m;
-      setBanner("sim", "warn", m.sim ? `The gateway is replaying a recorded file${m.simName ? ` (${String(m.simName).slice(0, 80)})` : ""}. These are not live capsule images.` : null);
-      if (m.sim) S.simulated = true; }
-    else if (m.k === "f" && typeof m.b === "string") {
-      const key = `${m.ts}:${m.n}`, hk = `${m.ts}:h${m.ts}`;
-      if (RM.seen.has(key) || RM.seen.has(`ts:${m.ts}`)) return;
-      RM.seen.add(key); RM.seen.add(hk); RM.seen.add(`ts:${m.ts}`);
-      ingestFrame({ ts: m.ts, frame: b64d(m.b) }, true);
-      $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
-    } else if (m.k === "e" && m.ev && typeof m.ev === "object") { ingestEvent(m.ev, true); renderStats(); scheduleDraw(); }
-  } else if (RM.role === "gateway" && m.k === "hello" && typeof m.id === "string") {
-    const isNew = !RM.viewers.has(m.id);
-    RM.viewers.set(m.id, { t: Date.now(), who: String(m.who || "").slice(0, 80) });
-    if (isNew) { note("info", `Remote viewer joined${m.who ? `: ${String(m.who).slice(0, 80)}` : ""}`); }
-    rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" });   // answer at once
-    if (m.first) rmSendHistory();
-  }
-  rmRender();
-}
-function rmCfg() {
-  return { role: $("rmRole").value, backend: $("rmBackend").value, url: rmNormUrl($("rmUrl").value), key: $("rmKey").value.trim().replace(/\s+/g, ""),
-    email: $("rmEmail").value.trim(), password: $("rmPass").value, room: $("rmRoom").value.trim().toLowerCase(), secret: $("rmSecret").value.normalize("NFC").trim() };
-}
-// v18: accept what people actually paste: the dashboard link, a URL with /rest/v1, missing https://
-function rmNormUrl(raw) {
-  let u = String(raw || "").trim().replace(/\s+/g, "");
-  const dash = u.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{10,40})/i);
-  if (dash) return `https://${dash[1].toLowerCase()}.supabase.co`;
-  if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
-  u = u.replace(/^http:\/\//i, "https://").replace(/\/(rest|auth|realtime)\/v1.*$/i, "").replace(/\/+$/, "");
-  return u;
-}
-function rmValidate(c) {
-  if (c.role === "off") return "Choose Gateway or Viewer.";
-  if (!/^[a-z0-9._-]{3,48}$/.test(c.room)) return "Room: 3–48 characters: letters, digits, dot, dash or underscore (no spaces).";
-  if (c.secret.length < 12) return "Room passphrase: at least 12 characters.";
-  if (c.backend === "supabase") {
-    if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL should look like https://xxxx.supabase.co (Project Settings → API).";
-    if (/abcdefghijklmnop|xxxx/i.test(c.url)) return "That is the sample URL. Paste your own Project URL from Supabase → Project Settings → API.";
-    if (/^sb_publishable_x+$/i.test(c.key) || c.key.length < 20) return "Paste your own publishable (or anon) key from Supabase → Project Settings → API.";
-    if (!c.key) return "Enter the publishable key.";
-    if (c.role === "gateway" && !$("rmBaa").checked && !$("rmModeTest").checked) return "Choose what this gateway will share: test data only, or patient data (BAA project).";
-  }
-  if (c.role === "viewer" && device && device.gatt && device.gatt.connected) return "Disconnect the capsule here before watching remotely.";
-  if (c.role === "viewer" && OFF.active) return "Switch the source to Live BLE before watching remotely.";
-  return null;
-}
-async function rmStart() {
-  const c = rmCfg(), err = rmValidate(c);
-  if (err) { rmSetState("err", err); toast(err); return; }
-  $("rmStart").disabled = true; rmSetState("", "Connecting…");
-  try {
-    RM.key = await rmDeriveKey(c.secret, c.room); RM.aad = new TextEncoder().encode("peek1:" + c.room); RM.room = c.room;
-    RM.sent = RM.recv = RM.bad = RM.sendErr = 0; RM.viewers.clear(); RM.seen.clear(); RM.lastHb = 0; RM.gw = null; RM.firstHello = true;
-    $("rmRoom").value = c.room; $("rmUrl").value = c.url;           // show the normalised room name and URL
-    RM.backend = c.backend; RM.startedAt = Date.now();
-    RM.mode = c.backend === "local" ? "local" : ($("rmBaa").checked ? "patient" : "test"); RM.blocked = 0; RM.relayErr = 0; RM.relayOk = 0; RM.lastRelay = "";
-    RM.t = c.backend === "local" ? localTransport(c.room, rmOnMsg) : await supabaseTransport(c, rmOnMsg);
-    if (c.backend === "local") RM.user = "local";
-    RM.role = c.role;
-    $("rmSecret").value = ""; $("rmPass").value = "";                       // never keep secrets in the form
-    SET.rmBackend = c.backend; SET.rmUrl = c.url; SET.rmKey = c.key; SET.rmRoom = c.room; SET.rmBaaUrl = $("rmBaa").checked ? c.url : ""; saveSettings();
-    if (RM.role === "viewer") {
-      resetView(); renderGallery(); renderTimeline(); pvBuild("end");
-      R.connectedSince = Date.now(); setPill("connecting", `Remote · waiting for gateway in ${c.room}`);
-      const hello = () => { rmSend({ k: "hello", id: RM.id, who: RM.user, first: RM.firstHello }); RM.firstHello = false; };
-      hello(); RM.timers.push(clkEvery(20000, hello));
-      RM.timers.push(clkEvery(2000, rmViewerWatch));
-    } else {
-      const hb = () => rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" });
-      hb(); RM.timers.push(clkEvery(5000, hb));
-      RM.timers.push(clkEvery(5000, () => { const now = Date.now(); for (const [k, v] of RM.viewers) if (now - v.t > 60000) RM.viewers.delete(k); rmRender(); }));
-    }
-    note("ok", `Remote ${RM.role} started: room ${c.room} via ${RM.t.label}${RM.user ? `, signed in as ${RM.user}` : ""}`);
-    rmSetState("on", RM.role === "gateway" ? "Sharing" : "Watching");
-  } catch (e) {
-    RM.role = "off"; RM.key = null; RM.t = null;
-    rmSetState("err", e.message || String(e)); toast(e.message || String(e));
-  } finally { $("rmStart").disabled = false; rmRender(); }
-}
-async function rmStop(reason) {
-  for (const t of RM.timers) clkCancel(t); RM.timers = [];
-  const was = RM.role; RM.role = "off";
-  try { if (RM.t) await RM.t.close(); } catch { /* already closed */ }
-  RM.t = null; RM.key = null; RM.aad = null;
-  if (was === "viewer") { R.connectedSince = null; setPill("", "Remote viewing stopped"); }
-  if (was !== "off") note("info", `Remote ${was} stopped${reason ? ` (${reason})` : ""}`);
-  rmSetState("", "Off"); rmRender(); renderStats();
-}
-function rmViewerWatch() {
-  if (RM.role !== "viewer") return;
-  const age = RM.lastHb ? Date.now() - RM.lastHb : null;
-  if (age != null && age < 15000 && RM.gw && RM.gw.sim) setPill("retrying", `Remote · ${RM.room} · gateway replaying a recorded file`);
-  else if (age != null && age < 15000) setPill(RM.gw && RM.gw.ble ? "connected" : "retrying", RM.gw && RM.gw.ble ? `Remote · ${RM.room} · capsule link up` : `Remote · ${RM.room} · gateway up, capsule link down`);
-  else setPill("retrying", age == null ? `Remote · waiting for gateway in ${RM.room}` : `Remote · gateway silent for ${fmtAge(age)}`);
-  rmRender(); renderStats();
-}
-function rmDiagnose() {
-  const box = $("rmHint"); if (!box) return;
-  let h = null; const since = RM.startedAt ? Date.now() - RM.startedAt : 0;
-  if (RM.role === "viewer" && (!RM.lastHb || Date.now() - RM.lastHb > 15000) && since > 10000) {
-    if (RM.bad > 0) h = ["Messages arrive but cannot be decrypted.", "The room passphrase is different from the gateway's. Retype it on both devices (it is case-sensitive)."];
-    else if (RM.backend === "local") h = ["Local test only connects tabs in this same browser on this computer.", "For a phone or another PC, choose Relay: Supabase Realtime on both the gateway and this device."];
-    else h = [`Nothing heard in room "${RM.room}".`, "Check that the gateway shows Sharing with exactly this room name, both devices use the same Project URL, and the gateway page is still open."];
-  } else if (RM.role === "gateway" && RM.relayErr > 0 && RM.sent === 0) {
-    h = ["The relay is not accepting messages from this gateway.", `Supabase answered "${RM.lastRelay}". Run the second SQL policy (peek1 rooms: send) from the setup section, then press Stop and Start.`];
-  } else if (RM.role === "gateway" && RM.mode === "test" && RM.blocked > 0 && !SIM.on) {
-    h = ["Live capsule frames are not being shared.", "This gateway is in test-data mode. Replay a .bin file to test, or use a BAA project and choose Patient data to share live frames."];
-  } else if (RM.role === "gateway" && since > 30000 && !RM.viewers.size) {
-    if (RM.bad > 0) h = ["A viewer is trying to join with a different passphrase.", "Ask them to retype the room passphrase."];
-    else if (RM.backend === "local") h = ["No viewer yet. Local test only reaches tabs in this browser.", "Open this page in another tab or window of this browser, or switch both sides to Supabase Realtime."];
-  }
-  box.hidden = !h; if (h) box.innerHTML = `<b>${esc(h[0])}</b>${esc(h[1])}`;
-}
-let rmRenderT = 0;
-function rmRenderSoon() { if (!rmRenderT) rmRenderT = setTimeout(() => { rmRenderT = 0; rmRender(); }, 400); }
-function rmSetState(cls, text) { const el = $("rmState"); el.className = "act muted " + (cls || ""); el.textContent = text; }
-function rmRender() {
-  const on = RM.role !== "off";
-  $("rmStart").hidden = on; $("rmStop").hidden = !on;
-  for (const id of ["rmRole", "rmBackend", "rmUrl", "rmKey", "rmEmail", "rmPass", "rmRoom", "rmSecret", "rmBaa", "rmModeTest"]) $(id).disabled = on;
-  const sbOn = $("rmBackend").value === "supabase";
-  q("#remoteCard .sb").forEach(el => { el.hidden = !sbOn; });
-  $("rmBaaRow").hidden = !(sbOn && $("rmRole").value !== "viewer");
-  const cell = (k, v, sub) => `<div class="la-cell"><span>${esc(k)}</span><b>${esc(v)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
-  $("rmLink").hidden = !(on && RM.role === "gateway");
-  rmDiagnose();
-  if (!on) { $("rmStats").innerHTML = ""; $("rmHint").hidden = true; crBadge("remote", 0); return; }
-  const now = Date.now(), live = [...RM.viewers.values()].filter(v => now - v.t < 60000);
-  $("rmStats").innerHTML = RM.role === "gateway"
-    ? cell("Viewers watching", String(live.length), live.map(v => v.who).filter(Boolean).slice(0, 3).join(", ")) +
-      cell(RM.backend === "supabase" ? "Accepted by relay" : "Messages sent", RM.sent.toLocaleString(), RM.relayErr ? `${RM.relayErr} not accepted (${RM.lastRelay})` : RM.sendErr ? `${RM.sendErr} send errors` : RM.t ? RM.t.label : "") +
-      (RM.mode === "test" ? cell("Data mode", "Test only", RM.blocked ? `${RM.blocked} live frames kept on this PC` : "replayed files only") : RM.mode === "patient" ? cell("Data mode", "Patient (BAA)", "live capsule frames shared") : "") +
-      cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), "could not be decrypted")
-    : cell("Gateway", RM.lastHb && now - RM.lastHb < 15000 ? "Online" : "Not heard", RM.lastHb ? `last heartbeat ${fmtAge(now - RM.lastHb)} ago` : "waiting") + cell("Frames received", S.total.toLocaleString(), "kept in memory only") +
-      cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), RM.bad ? "wrong passphrase?" : "none");
-  crBadge("remote", RM.bad ? RM.bad : 0);
-}
 // ---------------- background-proof clock (v16) ----------------
 // Chrome throttles setTimeout/setInterval in hidden tabs (down to about once a minute after 5 min).
-// A dedicated worker keeps ticking, so replay and heartbeats continue when the gateway tab is not visible.
+// A dedicated worker keeps ticking, so replay keeps running when this tab is not visible.
 const CLK = { tasks: new Map(), n: 0, worker: null, fallback: null };
 (function clkStart() {
   const run = () => { const now = Date.now(); for (const [id, t] of CLK.tasks) if (now >= t.due) { if (t.every) t.due = now + t.every; else CLK.tasks.delete(id); try { t.fn(); } catch (e) { reportError(e.message); } } };
@@ -2654,7 +2352,6 @@ const SIM = { on: false, timer: null, frames: [], i: 0, speed: 1, name: "" };
 async function simStart(file) {
   if (OFF.active) { toast("Switch the source to Live BLE first"); return; }
   if (device && device.gatt && device.gatt.connected) { toast("Disconnect the capsule before replaying a file"); return; }
-  if (RM.role === "viewer") { toast("A viewer cannot replay files. Use this on the gateway."); return; }
   if (SIM.on) simStop("restarted");
   const u = new Uint8Array(await file.arrayBuffer()), r = scanFrames(u, file.name);
   if (!r.frames.length) { toast("No PEEK1 frames found in this file"); return; }
@@ -2663,9 +2360,8 @@ async function simStart(file) {
   setPill("connected", `Simulated capsule · ${file.name}`);
   setBanner("sim", "warn", `Simulated feed: replaying ${file.name}. These are recorded frames, not a live capsule.`);
   note("warn", `Simulated capsule started: replaying ${SIM.frames.length} frames from ${file.name}`);
-  simRender(); simTick(); rmHbNow();
+  simRender(); simTick();
 }
-function rmHbNow() { if (RM.role === "gateway") rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" }); }
 function simTick() {
   if (!SIM.on) return;
   if (SIM.i >= SIM.frames.length) { simStop("end of file"); return; }
@@ -2683,39 +2379,14 @@ function simStop(reason) {
   if (!(device && device.gatt && device.gatt.connected)) R.connectedSince = null;
   setPill("", "Simulation stopped"); setBanner("sim");
   note("info", `Simulated capsule stopped (${reason}): ${SIM.i} of ${SIM.frames.length} frames replayed`);
-  simRender(); renderStats(); rmHbNow();
+  simRender(); renderStats();
 }
 function simRender() {
   $("simBtn").hidden = SIM.on; $("simStop").hidden = !SIM.on;
   $("simInfo").textContent = SIM.on ? `Replaying ${SIM.name}: ${SIM.i} / ${SIM.frames.length} frames at ${SIM.speed}×` : SIM.frames.length ? `Last replay: ${SIM.i} / ${SIM.frames.length} frames from ${SIM.name}` : "";
 }
 
-function rmInit() {
-  $("rmBackend").value = SET.rmBackend || "supabase"; $("rmUrl").value = SET.rmUrl || ""; $("rmKey").value = SET.rmKey || ""; $("rmRoom").value = SET.rmRoom || "";
-  $("rmBaa").checked = !!SET.rmUrl && SET.rmBaaUrl === SET.rmUrl;
-  if (!$("rmBaa").checked) $("rmModeTest").checked = true;
-  $("rmBackend").addEventListener("change", rmRender); $("rmRole").addEventListener("change", rmRender);
-  $("rmUrl").addEventListener("change", () => { $("rmBaa").checked = SET.rmBaaUrl && SET.rmBaaUrl === $("rmUrl").value.trim().replace(/\/+$/, ""); });
-  $("rmStart").addEventListener("click", rmStart); $("rmStop").addEventListener("click", () => rmStop("by user"));
-  $("rmSignOut").addEventListener("click", async () => { if (RM.role !== "off") await rmStop("signed out"); if (RM.client) await RM.client.auth.signOut(); RM.user = ""; toast("Signed out"); });
-  window.addEventListener("beforeunload", () => { if (RM.t) RM.t.close(); });
-  rmRender();
-  $("rmLink").addEventListener("click", async () => {
-    const p = new URLSearchParams({ rm: "viewer", relay: RM.backend || "supabase", room: RM.room });
-    if (RM.backend === "supabase") { p.set("url", SET.rmUrl); p.set("key", SET.rmKey); }
-    const link = `${location.origin}${location.pathname}#${p.toString()}`;           // after #: never sent to any server
-    try { await navigator.clipboard.writeText(link); toast("Viewer link copied. Send the passphrase separately."); }
-    catch { window.prompt("Copy this viewer link (the passphrase is not included):", link); }
-  });
-  try {                                                                               // open from a viewer link
-    const h = new URLSearchParams(location.hash.slice(1));
-    if (h.get("rm") === "viewer") {
-      $("rmRole").value = "viewer"; if (h.get("relay")) $("rmBackend").value = h.get("relay");
-      if (h.get("room")) $("rmRoom").value = h.get("room"); if (h.get("url")) $("rmUrl").value = h.get("url"); if (h.get("key")) $("rmKey").value = h.get("key");
-      history.replaceState(null, "", location.pathname + location.search); rmRender(); crSelect("remote");
-      toast("Viewer settings filled in. Sign in, enter the room passphrase, then press Start.");
-    }
-  } catch { /* ignore malformed links */ }
+function simInit() {
   $("simBtn").addEventListener("click", () => $("simFile").click());
   $("simFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) simStart(f); });
   $("simStop").addEventListener("click", () => simStop("by user"));
@@ -2729,7 +2400,7 @@ $("laCsv").addEventListener("click", exportLossCsv);
 q("#crTabs button").forEach(b => b.addEventListener("click", () => crSelect(b.dataset.tab)));
 $("crTabs").addEventListener("keydown", e => { const bs = q("#crTabs button"), i = bs.findIndex(b => b.getAttribute("aria-selected") === "true");
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = bs[(i + (e.key === "ArrowRight" ? 1 : bs.length - 1)) % bs.length]; crSelect(n.dataset.tab); n.focus(); e.preventDefault(); } });
-crSelect(SET.crTab || "trends"); rmInit();
+crSelect(SET.crTab || "trends"); simInit();
 $("rpPrint").addEventListener("click", printReport);
 $("rpDl").addEventListener("click", downloadReport);
 // ---------- E. last-resort error guard (v12): never fail silently ----------
