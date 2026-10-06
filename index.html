@@ -568,6 +568,17 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <label class="rm-baa" id="rmBaaRow"><input type="checkbox" id="rmBaa"> This Supabase project has the HIPAA add-on enabled and a signed BAA. Required before patient data leaves this PC.</label>
         <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button></div>
         <div class="la-grid" id="rmStats"></div>
+        <div class="rm-sim">
+          <div class="la-sub">Test feed</div>
+          <p class="rm-note">No capsule at hand? Replay a recorded .bin file as if it were arriving live over BLE. It takes the same path as real data, so a gateway shares it like a real session. Viewers are told it is a replay.</p>
+          <div class="la-actions">
+            <button id="simBtn">Replay a .bin file as live…</button>
+            <label class="muted">Speed <select id="simSpeed"><option value="1">1× (real time)</option><option value="5">5×</option><option value="20">20×</option></select></label>
+            <button id="simStop" hidden>Stop replay</button>
+          </div>
+          <div class="rm-note" id="simInfo" style="margin-top:8px"></div>
+          <input type="file" id="simFile" accept=".bin,.dat,.raw,application/octet-stream" hidden>
+        </div>
         <details class="rm-setup"><summary>One-time Supabase setup</summary>
           <ol>
             <li>Use the Team plan with the HIPAA add-on, and sign the BAA in the dashboard <b>before</b> any patient data is sent. Encryption alone does not replace the BAA.</li>
@@ -658,7 +669,7 @@ with check ( (select realtime.topic()) like 'peek1:%'
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v14 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v15 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1562,7 +1573,7 @@ function reportHTML() {
   const when = S.start ? `${new Date(S.start).toLocaleString()} → ${S.lastTs ? new Date(S.lastTs).toLocaleTimeString() : "…"}` : "–";
   const sec = (title, rows) => `<div class="rp-sec"><h3>${esc(title)}</h3><dl>${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl></div>`;
   const dash = v => v == null || v === "" ? "–" : v;
-  return `<p class="rp-meta">${esc(OFF.active ? `File: ${OFF.names}` : "Live BLE session")} · ${esc(when)} · ${esc(dur)}${OFF.active ? " · times estimated from seq" : ""}</p>
+  return `<p class="rp-meta">${S.simulated ? "<b>SIMULATED FEED (recorded frames replayed)</b> · " : ""}${esc(OFF.active ? `File: ${OFF.names}` : RM.role === "viewer" ? `Remote viewer, room ${RM.room}` : "Live BLE session")} · ${esc(when)} · ${esc(dur)}${OFF.active ? " · times estimated from seq" : ""}</p>
 <ul class="rp-flags">${F.map(f => `<li class="${f.c}"><i></i><div>${esc(f.t)}${f.s ? `<small>${esc(f.s)}</small>` : ""}</div></li>`).join("")}</ul>
 <div class="rp-grid">
 ${sec("Images", [["Received", S.total.toLocaleString()], ["Front / back", `${S.f.toLocaleString()} / ${S.b.toLocaleString()}`], ["Seq range", S.lastSeq == null ? "–" : `${S.seqFirst ?? "?"} → ${S.lastSeq}`],
@@ -1576,7 +1587,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v14 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v15 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1597,7 +1608,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v14, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v15, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2077,6 +2088,7 @@ async function onConnClicked() {
   }
   if (OFF.active) return;
   if (RM.role === "viewer") { toast("Stop remote viewing before connecting a capsule here"); return; }
+  if (SIM.on) simStop("real capsule connecting");
   if (!navigator.bluetooth) { showSupportBanner(); return; }
   manualDisconnect = false;
   try {
@@ -2446,7 +2458,9 @@ async function rmOnMsg(raw) {
   try { m = await rmOpen(raw); } catch { RM.bad++; if (RM.bad === 1) note("warn", "Remote: a message could not be decrypted. Check that the room passphrase matches."); rmRender(); return; }
   RM.recv++;
   if (RM.role === "viewer") {
-    if (m.k === "hb") { RM.lastHb = Date.now(); RM.gw = m; }
+    if (m.k === "hb") { RM.lastHb = Date.now(); RM.gw = m;
+      setBanner("sim", "warn", m.sim ? `The gateway is replaying a recorded file${m.simName ? ` (${String(m.simName).slice(0, 80)})` : ""}. These are not live capsule images.` : null);
+      if (m.sim) S.simulated = true; }
     else if (m.k === "f" && typeof m.b === "string") {
       const key = `${m.ts}:${m.n}`, hk = `${m.ts}:h${m.ts}`;
       if (RM.seen.has(key) || RM.seen.has(`ts:${m.ts}`)) return;
@@ -2458,6 +2472,7 @@ async function rmOnMsg(raw) {
     const isNew = !RM.viewers.has(m.id);
     RM.viewers.set(m.id, { t: Date.now(), who: String(m.who || "").slice(0, 80) });
     if (isNew) { note("info", `Remote viewer joined${m.who ? `: ${String(m.who).slice(0, 80)}` : ""}`); }
+    rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" });   // answer at once
     if (m.first) rmSendHistory();
   }
   rmRender();
@@ -2498,7 +2513,7 @@ async function rmStart() {
       hello(); RM.timers.push(setInterval(hello, 20000));
       RM.timers.push(setInterval(rmViewerWatch, 2000));
     } else {
-      const hb = () => rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total });
+      const hb = () => rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" });
       hb(); RM.timers.push(setInterval(hb, 5000));
       RM.timers.push(setInterval(() => { const now = Date.now(); for (const [k, v] of RM.viewers) if (now - v.t > 60000) RM.viewers.delete(k); rmRender(); }, 5000));
     }
@@ -2521,7 +2536,8 @@ async function rmStop(reason) {
 function rmViewerWatch() {
   if (RM.role !== "viewer") return;
   const age = RM.lastHb ? Date.now() - RM.lastHb : null;
-  if (age != null && age < 15000) setPill(RM.gw && RM.gw.ble ? "connected" : "retrying", RM.gw && RM.gw.ble ? `Remote · ${RM.room} · capsule link up` : `Remote · ${RM.room} · gateway up, capsule link down`);
+  if (age != null && age < 15000 && RM.gw && RM.gw.sim) setPill("retrying", `Remote · ${RM.room} · gateway replaying a recorded file`);
+  else if (age != null && age < 15000) setPill(RM.gw && RM.gw.ble ? "connected" : "retrying", RM.gw && RM.gw.ble ? `Remote · ${RM.room} · capsule link up` : `Remote · ${RM.room} · gateway up, capsule link down`);
   else setPill("retrying", age == null ? `Remote · waiting for gateway in ${RM.room}` : `Remote · gateway silent for ${fmtAge(age)}`);
   rmRender(); renderStats();
 }
@@ -2543,6 +2559,47 @@ function rmRender() {
       cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), RM.bad ? "wrong passphrase?" : "none");
   crBadge("remote", RM.bad ? RM.bad : 0);
 }
+// ---------------- simulated capsule / test feed (v15) ----------------
+const SIM = { on: false, timer: null, frames: [], i: 0, speed: 1, name: "" };
+async function simStart(file) {
+  if (OFF.active) { toast("Switch the source to Live BLE first"); return; }
+  if (device && device.gatt && device.gatt.connected) { toast("Disconnect the capsule before replaying a file"); return; }
+  if (RM.role === "viewer") { toast("A viewer cannot replay files. Use this on the gateway."); return; }
+  if (SIM.on) simStop("restarted");
+  const u = new Uint8Array(await file.arrayBuffer()), r = scanFrames(u, file.name);
+  if (!r.frames.length) { toast("No PEEK1 frames found in this file"); return; }
+  SIM.frames = r.frames.map(f => f.bytes); SIM.i = 0; SIM.on = true; SIM.name = file.name; SIM.speed = parseFloat($("simSpeed").value) || 1;
+  S.simulated = true; assembler.flush(); R.connectedSince = R.connectedSince || Date.now();
+  setPill("connected", `Simulated capsule · ${file.name}`);
+  setBanner("sim", "warn", `Simulated feed: replaying ${file.name}. These are recorded frames, not a live capsule.`);
+  note("warn", `Simulated capsule started: replaying ${SIM.frames.length} frames from ${file.name}`);
+  simRender(); simTick(); rmHbNow();
+}
+function rmHbNow() { if (RM.role === "gateway") rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total, sim: SIM.on, simName: SIM.on ? SIM.name : "" }); }
+function simTick() {
+  if (!SIM.on) return;
+  if (SIM.i >= SIM.frames.length) { simStop("end of file"); return; }
+  const f = SIM.frames[SIM.i++];
+  const info = new Uint8Array(7);                               // same notifications the nRF sends: INFO + 244-byte chunks
+  info[0] = 0xC0; info[1] = 0x5A; info[2] = f.length & 255; info[3] = (f.length >> 8) & 255; info[4] = (f.length >> 16) & 255; info[5] = (f.length >>> 24) & 255; info[6] = 1;
+  assembler.onInfo(info);
+  for (let o = 0; o < f.length; o += 244) { const d = f.slice(o, o + 244); if (d.length > S.maxChunk) S.maxChunk = d.length; assembler.onChunk(d); }
+  if (SIM.i % 10 === 0) simRender();
+  SIM.timer = setTimeout(simTick, Math.max(20, 1100 / SIM.speed));   // ~55 frames/min at 1x, like the capsule
+}
+function simStop(reason) {
+  if (!SIM.on) return;
+  SIM.on = false; clearTimeout(SIM.timer); assembler.flush();
+  if (!(device && device.gatt && device.gatt.connected)) R.connectedSince = null;
+  setPill("", "Simulation stopped"); setBanner("sim");
+  note("info", `Simulated capsule stopped (${reason}): ${SIM.i} of ${SIM.frames.length} frames replayed`);
+  simRender(); renderStats(); rmHbNow();
+}
+function simRender() {
+  $("simBtn").hidden = SIM.on; $("simStop").hidden = !SIM.on;
+  $("simInfo").textContent = SIM.on ? `Replaying ${SIM.name}: ${SIM.i} / ${SIM.frames.length} frames at ${SIM.speed}×` : SIM.frames.length ? `Last replay: ${SIM.i} / ${SIM.frames.length} frames from ${SIM.name}` : "";
+}
+
 function rmInit() {
   $("rmBackend").value = SET.rmBackend || "supabase"; $("rmUrl").value = SET.rmUrl || ""; $("rmKey").value = SET.rmKey || ""; $("rmRoom").value = SET.rmRoom || "";
   $("rmBaa").checked = !!SET.rmUrl && SET.rmBaaUrl === SET.rmUrl;
@@ -2552,6 +2609,10 @@ function rmInit() {
   $("rmSignOut").addEventListener("click", async () => { if (RM.role !== "off") await rmStop("signed out"); if (RM.client) await RM.client.auth.signOut(); RM.user = ""; toast("Signed out"); });
   window.addEventListener("beforeunload", () => { if (RM.t) RM.t.close(); });
   rmRender();
+  $("simBtn").addEventListener("click", () => $("simFile").click());
+  $("simFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) simStart(f); });
+  $("simStop").addEventListener("click", () => simStop("by user"));
+  $("simSpeed").addEventListener("change", e => { SIM.speed = parseFloat(e.target.value) || 1; simRender(); });
 }
 
 $("btnConn").addEventListener("click", onConnClicked);
