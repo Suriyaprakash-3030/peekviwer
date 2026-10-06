@@ -8,14 +8,16 @@
 <title>PEEK1 Monitor</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='24' height='14' rx='7' fill='%231F5FAD'/%3E%3Ccircle cx='11' cy='16' r='3' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #EEF1F4; --panel: #FFFFFF; --panel2: #F6F8FA; --ink: #17212B; --muted: #5E6B78; --line: #D8DEE4; --grid: #E8ECF0;
-  --blue: #1F5FAD; --violet: #7348B0; --ok: #2E7A4C; --warn: #A8680F; --bad: #B42318; --adv: #8C98A4;
-  --okbg: #E6F2EA; --warnbg: #FBF0DF; --badbg: #FBE7E5; --bluebg: #E5EEF8;
+  --bg: #E9EFEE; --panel: #FFFFFF; --panel2: #F3F7F6; --ink: #102328; --muted: #56696E; --line: #CFDBD9; --grid: #E2EAE8;
+  --blue: #0B6E75; --violet: #A8406E; --ok: #2F7D4A; --warn: #A86400; --bad: #B8322A; --adv: #8A9A9D;
+  --okbg: #E3F1E8; --warnbg: #FAEEDB; --badbg: #F8E4E2; --bluebg: #DDEEEE;
+  --bezel: #0B1518; --bezel2: #13232A; --bezelink: #D4E2E1; --bezelmuted: #7F9599;
+  --num: "Barlow Semi Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --shadow: 0 1px 2px rgba(20, 30, 40, .06);
+  --shadow: 0 1px 2px rgba(16, 35, 40, .06);
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -24,31 +26,32 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0F151B; --panel: #172029; --panel2: #1C2631; --ink: #E3E8ED; --muted: #94A0AC; --line: #283441; --grid: #212B36;
-    --blue: #6EA2E8; --violet: #B294E6; --ok: #5BBA84; --warn: #E3A94F; --bad: #F2796C; --adv: #7D8995;
-    --okbg: #1B3326; --warnbg: #3A2C14; --badbg: #3D1F1C; --bluebg: #1A2C44; --shadow: none; color-scheme: dark;
+    --bg: #0C1619; --panel: #132226; --panel2: #172A2F; --ink: #DDE8E7; --muted: #8FA3A6; --line: #23383D; --grid: #1B2E33;
+    --blue: #4FC1C6; --violet: #E48AB0; --ok: #5DBB83; --warn: #E2A64B; --bad: #F07A6E; --adv: #6F8488;
+    --okbg: #17321F; --warnbg: #3A2B12; --badbg: #3B1D1A; --bluebg: #12333A; --bezel: #070E10; --bezel2: #0F1D21; --shadow: none; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0F151B; --panel: #172029; --panel2: #1C2631; --ink: #E3E8ED; --muted: #94A0AC; --line: #283441; --grid: #212B36;
-  --blue: #6EA2E8; --violet: #B294E6; --ok: #5BBA84; --warn: #E3A94F; --bad: #F2796C; --adv: #7D8995;
-  --okbg: #1B3326; --warnbg: #3A2C14; --badbg: #3D1F1C; --bluebg: #1A2C44; --shadow: none; color-scheme: dark;
+  --bg: #0C1619; --panel: #132226; --panel2: #172A2F; --ink: #DDE8E7; --muted: #8FA3A6; --line: #23383D; --grid: #1B2E33;
+  --blue: #4FC1C6; --violet: #E48AB0; --ok: #5DBB83; --warn: #E2A64B; --bad: #F07A6E; --adv: #6F8488;
+  --okbg: #17321F; --warnbg: #3A2B12; --badbg: #3B1D1A; --bluebg: #12333A; --bezel: #070E10; --bezel2: #0F1D21; --shadow: none; color-scheme: dark;
 }
 *, *::before, *::after { box-sizing: inherit; }
 html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
 body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; }
-.wrap { max-width: 1320px; margin: 0 auto; padding: 0 14px 28px; }
+.wrap { max-width: 1360px; margin: 0 auto; padding: 0 16px 28px; }
 .mono { font-family: var(--mono); }
 .muted { color: var(--muted); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* ---------- Header ---------- */
-header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent);
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 90%, transparent);
   backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 10px; padding-bottom: 10px; }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 1.02rem; white-space: nowrap; }
-.brand svg { width: 30px; height: 30px; flex: none; }
-.brand small { display: block; font-weight: 400; font-size: .72rem; color: var(--muted); line-height: 1.1; }
+.brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.brand svg { width: 34px; height: 34px; flex: none; }
+.brand .name { font-family: var(--num); font-weight: 600; font-size: 1.25rem; letter-spacing: .01em; line-height: 1; }
+.brand small { display: block; font-size: .74rem; color: var(--muted); line-height: 1.2; margin-top: 2px; }
 .pill { display: inline-flex; align-items: center; gap: 7px; font-size: .84rem; padding: 5px 11px; border-radius: 999px;
   background: var(--panel); border: 1px solid var(--line); min-width: 0; max-width: 100%; }
 .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--adv); flex: none; }
@@ -65,13 +68,14 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; 
 #drop { position: fixed; inset: 0; z-index: 60; display: none; place-items: center; background: color-mix(in srgb, var(--blue) 18%, transparent);
   border: 3px dashed var(--blue); font-size: 1.2rem; font-weight: 600; color: var(--ink); pointer-events: none; }
 #drop.on { display: grid; }
-@media (max-width: 600px) { .srcmode button { padding: 6px 9px; font-size: .78rem; } }
 @keyframes blink { 50% { opacity: .25; } }
 .spacer { flex: 1; }
 button { font: inherit; font-weight: 500; padding: 8px 15px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 button:hover:not(:disabled) { border-color: var(--muted); }
 button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+:root[data-theme="dark"] button.primary { color: #06191C; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) button.primary { color: #06191C; } }
 button.danger { color: var(--bad); }
 button.icon { padding: 7px; width: 38px; height: 38px; display: grid; place-items: center; }
 button.icon svg { width: 18px; height: 18px; }
@@ -90,74 +94,91 @@ button:disabled { opacity: .45; cursor: default; }
 .toast { background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 8px; font-size: .88rem;
   box-shadow: 0 6px 20px rgba(0,0,0,.2); animation: tin .2s ease-out; }
 @keyframes tin { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .toast, .pill i { animation: none !important; } }
 
-/* ---------- Cards ---------- */
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
-.card h2 { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
-  margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.card h2 .act { text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* ---------- Hero: monitor bezel ---------- */
+.monitor { margin-top: 14px; background: var(--bezel); color: var(--bezelink); border-radius: 18px; padding: 14px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 250px; gap: 14px; box-shadow: 0 10px 30px -18px rgba(5, 20, 24, .7), inset 0 0 0 1px rgba(255,255,255,.05); }
+.monitor .shot { margin: 0; min-width: 0; }
+.shot .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 2px 8px; }
+.shot .head span { font-family: var(--num); font-weight: 600; font-size: 1.1rem; letter-spacing: .02em; }
+.shot .head small { color: var(--bezelmuted); font-size: .76rem; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.monitor .f { color: #5CCBD0; } .monitor .b { color: #EE9BBE; }
+.imgbox { aspect-ratio: 4 / 3; background: #000; display: grid; place-items: center; border-radius: 10px; overflow: hidden; position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+#shotF .imgbox { box-shadow: inset 0 0 0 1px rgba(92,203,208,.35); } #shotB .imgbox { box-shadow: inset 0 0 0 1px rgba(238,155,190,.35); }
+.imgbox img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
+.imgbox em { color: var(--bezelmuted); font-size: .86rem; font-style: normal; text-align: center; padding: 8px; }
+.imgbox .tag { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.65); color: #fff; font-size: .72rem;
+  padding: 2px 7px; border-radius: 4px; font-family: var(--mono); }
+.shot.flash .imgbox { animation: flash .7s ease-out; }
+#shotF.flash .imgbox { --fl: #5CCBD0; } #shotB.flash .imgbox { --fl: #EE9BBE; }
+@keyframes flash { from { box-shadow: inset 0 0 0 3px var(--fl, #fff); } }
 
-/* KPIs */
-.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
-.kpi { position: relative; overflow: hidden; }
-.kpi .label { font-size: .76rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.kpi .value { font-size: 2rem; font-weight: 600; line-height: 1.1; margin-top: 6px; letter-spacing: -.01em; }
-.kpi .value small { font-size: .9rem; font-weight: 500; color: var(--muted); margin-left: 3px; }
-.kpi .sub { font-size: .82rem; color: var(--muted); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.health { background: var(--bezel2); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.health .state { display: flex; align-items: center; gap: 10px; }
+.health .lamp { width: 14px; height: 14px; border-radius: 50%; background: #4A5C60; flex: none; box-shadow: 0 0 0 4px rgba(255,255,255,.04); }
+.health[data-s="good"] .lamp { background: #4CC27A; box-shadow: 0 0 0 4px rgba(76,194,122,.18), 0 0 14px rgba(76,194,122,.55); }
+.health[data-s="degraded"] .lamp { background: #F0B44C; box-shadow: 0 0 0 4px rgba(240,180,76,.18), 0 0 14px rgba(240,180,76,.5); }
+.health[data-s="poor"] .lamp, .health[data-s="stalled"] .lamp { background: #F26B5E; box-shadow: 0 0 0 4px rgba(242,107,94,.2), 0 0 14px rgba(242,107,94,.55); }
+.health[data-s="offline"] .lamp { background: #5CCBD0; }
+.health .word { font-family: var(--num); font-weight: 600; font-size: 1.7rem; line-height: 1; }
+.health .why { font-size: .8rem; color: var(--bezelmuted); min-height: 2.4em; }
+.health dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 7px 10px; font-size: .84rem; }
+.health dt { color: var(--bezelmuted); } .health dd { margin: 0; text-align: right; font-family: var(--num); font-weight: 600; font-size: 1.02rem; }
+.beat { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #5CCBD0; margin-left: 6px; opacity: 0; vertical-align: 2px; }
+.beat.on { animation: beat 1s ease-out; }
+@keyframes beat { from { opacity: 1; transform: scale(1.4); } to { opacity: 0; transform: scale(1); } }
+
+/* ---------- Instrument rail (KPIs) ---------- */
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 14px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.kpi { position: relative; padding: 14px 16px 13px; min-width: 0; }
+.kpi + .kpi { border-left: 1px solid var(--line); }
+.kpi.card { background: none; border: 0; border-radius: 0; box-shadow: none; }
+.kpi.card + .kpi.card { border-left: 1px solid var(--line); }
+.kpi .label { font-size: .82rem; font-weight: 500; color: var(--muted); }
+.kpi .value { font-family: var(--num); font-size: 2.3rem; font-weight: 600; line-height: 1.05; margin-top: 4px; }
+.kpi .value small { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: .85rem; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.kpi .sub { font-size: .8rem; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .kpi .sub b { color: var(--ink); font-weight: 600; }
-.kpi .accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line); }
+.kpi .accent { position: absolute; left: 16px; right: 16px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: transparent; }
 .kpi.ok .accent { background: var(--ok); } .kpi.warn .accent { background: var(--warn); } .kpi.bad .accent { background: var(--bad); }
 .kpi.ok .value { color: var(--ok); } .kpi.warn .value { color: var(--warn); } .kpi.bad .value { color: var(--bad); }
 .f { color: var(--blue); } .b { color: var(--violet); }
-.meter { height: 6px; background: var(--grid); border-radius: 3px; margin-top: 10px; overflow: hidden; }
-.meter div { height: 100%; width: 0; background: var(--ok); transition: width .4s; }
 .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; margin-left: 6px; vertical-align: -1px; }
 .bars i { width: 4px; background: var(--grid); border-radius: 1px; }
 .bars i:nth-child(1) { height: 25%; } .bars i:nth-child(2) { height: 50%; } .bars i:nth-child(3) { height: 75%; } .bars i:nth-child(4) { height: 100%; }
 .bars.q1 i:nth-child(-n+1), .bars.q2 i:nth-child(-n+2), .bars.q3 i:nth-child(-n+3), .bars.q4 i { background: currentColor; }
 
-.strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 12px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.strip div { padding: 9px 12px; border-left: 1px solid var(--line); min-width: 0; }
+.strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 10px; }
+.strip div { padding: 4px 16px; border-left: 1px solid var(--line); min-width: 0; }
 .strip div:first-child { border-left: 0; }
-.strip b { display: block; font-size: .98rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.strip span { font-size: .74rem; color: var(--muted); }
+.strip b { display: block; font-family: var(--num); font-size: 1.08rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip span { font-size: .76rem; color: var(--muted); }
 
-/* Main grid */
-.main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 14px; margin-top: 14px; align-items: start; }
-.col { display: grid; gap: 14px; min-width: 0; }
+/* ---------- Cards ---------- */
+.main { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; margin-top: 16px; align-items: start; }
+.col { display: grid; gap: 16px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+.card h2 { font-family: var(--num); font-size: 1.22rem; font-weight: 600; color: var(--ink); letter-spacing: .005em;
+  margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card h2 .act { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: .8rem; font-weight: 400; }
 
-/* Live images */
-.live { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.shot { margin: 0; }
-.shot .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-weight: 600; font-size: .9rem; }
-.shot .head small { font-weight: 400; color: var(--muted); font-size: .76rem; }
-.imgbox { aspect-ratio: 4 / 3; background: var(--panel2); border: 1px solid var(--line); display: grid; place-items: center;
-  border-radius: 8px; overflow: hidden; position: relative; }
-.imgbox img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
-.imgbox em { color: var(--muted); font-size: .84rem; font-style: normal; text-align: center; padding: 8px; }
-.imgbox .tag { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: .72rem;
-  padding: 2px 7px; border-radius: 4px; font-family: var(--mono); }
-.shot.flash .imgbox { animation: flash .6s ease-out; }
-@keyframes flash { from { box-shadow: 0 0 0 3px var(--blue); } }
-
-/* Gallery */
+/* Gallery / filters */
 .filters { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .filters button { border: 0; border-radius: 0; padding: 4px 11px; font-size: .8rem; background: transparent; }
 .filters button + button { border-left: 1px solid var(--line); }
-.filters button[aria-pressed="true"] { background: var(--blue); color: #fff; }
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; max-height: 440px; overflow-y: auto; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; max-height: 440px; overflow-y: auto; }
 .pager, .logbar, .evbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: .82rem; color: var(--muted); }
 .pager button, .logbar button, .evbar button { padding: 5px 11px; font-size: .82rem; }
 .pager .info { flex: 1; text-align: center; min-width: 120px; }
 .pager input, .logbar input, .evbar select, .pv-ctl select { font: inherit; font-size: .82rem; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); }
 .pager input { width: 110px; }
 .logbar input { flex: 1; min-width: 160px; }
-/* Playback */
-.player { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+.player { position: relative; background: #000; border-radius: 10px; overflow: hidden; }
 #pv { display: block; width: 100%; height: auto; cursor: default; touch-action: auto; background: #000; }
-.pv-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #9AA5B1; font-size: .9rem; }
+.pv-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #8FA3A6; font-size: .9rem; }
 .pv-empty[hidden], [hidden] { display: none !important; }
 #pvSeek { width: 100%; margin: 10px 0 4px; accent-color: var(--blue); }
 .pv-ctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .82rem; color: var(--muted); }
@@ -165,12 +186,12 @@ button:disabled { opacity: .45; cursor: default; }
 .pv-ctl .grow { flex: 1; }
 .pv-ctl button.rec { color: var(--bad); }
 .pv-info { font-size: .78rem; color: var(--muted); margin-top: 6px; min-height: 1.2em; }
-.thumb { position: relative; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--panel2); }
+.thumb { position: relative; padding: 0; border: 0; border-radius: 6px; overflow: hidden; aspect-ratio: 4 / 3; background: #000; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.thumb span { position: absolute; right: 3px; bottom: 3px; font-size: .64rem; font-family: var(--mono); background: rgba(0,0,0,.6); color: #fff; padding: 0 4px; border-radius: 3px; }
-.thumb::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.thumb span { position: absolute; right: 3px; bottom: 3px; font-size: .64rem; font-family: var(--mono); background: rgba(0,0,0,.65); color: #fff; padding: 0 4px; border-radius: 3px; }
+.thumb::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; z-index: 1; }
 .thumb.F::before { background: var(--blue); } .thumb.B::before { background: var(--violet); }
-.thumb .fx { left: 6px; right: auto; top: 3px; bottom: auto; background: var(--warn); color: #fff; font-family: inherit; font-weight: 600; }
+.thumb .fx { left: 4px; right: auto; top: 4px; bottom: auto; background: var(--warn); color: #fff; font-family: inherit; font-weight: 600; }
 .empty { color: var(--muted); font-size: .86rem; padding: 18px 4px; text-align: center; }
 
 /* Timeline */
@@ -182,7 +203,7 @@ button:disabled { opacity: .45; cursor: default; }
 .timeline .ok i { background: var(--ok); } .timeline .warn i { background: var(--warn); } .timeline .bad i { background: var(--bad); } .timeline .info i { background: var(--blue); }
 
 /* Charts */
-.chart-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.chart-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
 .chart { padding-top: 10px; }
 .chart + .chart { margin-top: 10px; border-top: 1px solid var(--grid); }
 .chart-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: .9rem; font-weight: 500; }
@@ -197,13 +218,45 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
 .zoombar .zl { flex: 1; min-width: 160px; }
 .zoombar.on .zl { color: var(--blue); font-weight: 500; }
 
+/* ---------- Loss analysis ---------- */
+.la-total { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.la-total b { font-family: var(--num); font-size: 2.1rem; font-weight: 600; line-height: 1; }
+.la-total span { color: var(--muted); font-size: .86rem; }
+.la-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--grid); margin: 12px 0 8px; }
+.la-bar i { display: block; height: 100%; min-width: 0; }
+.la-key { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: .86rem; }
+.la-key li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: baseline; }
+.la-key li i { width: 10px; height: 10px; border-radius: 3px; align-self: center; }
+.la-key li b { font-family: var(--num); font-size: 1.02rem; font-weight: 600; }
+.la-key li small { display: block; color: var(--muted); font-size: .76rem; }
+.c-disc { background: #7B8BC4; } .c-mid { background: var(--warn); } .c-hdr { background: #8E6CB8; } .c-never { background: var(--bad); }
+.la-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.la-cell { background: var(--panel2); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.la-cell span { display: block; font-size: .78rem; color: var(--muted); }
+.la-cell b { font-family: var(--num); font-size: 1.25rem; font-weight: 600; }
+.la-cell small { display: block; font-size: .74rem; color: var(--muted); }
+.la-sub { font-size: .9rem; font-weight: 500; margin: 16px 0 6px; }
+.hist { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; align-items: end; height: 70px; }
+.hist div { background: var(--warn); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
+.hist-x { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; font-size: .72rem; color: var(--muted); text-align: center; margin-top: 3px; }
+#laStrip { height: 46px; cursor: default; }
+.la-hints { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.la-hints li { border-left: 3px solid var(--blue); background: var(--bluebg); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: .86rem; }
+.la-hints li.warn { border-color: var(--warn); background: var(--warnbg); }
+.la-hints li small { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
+.la-fw { font-size: .84rem; color: var(--muted); margin-top: 10px; }
+.la-fw b { color: var(--ink); }
+.la-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.la-actions button { padding: 6px 12px; font-size: .84rem; }
+
 /* Tools / settings / log */
 .tools { display: flex; gap: 8px; flex-wrap: wrap; }
 details.card { padding: 0; }
-details.card > summary { padding: 12px 14px; cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; display: flex; justify-content: space-between; }
+details.card > summary { padding: 13px 16px; cursor: pointer; font-family: var(--num); font-weight: 600; font-size: 1.12rem; list-style: none; display: flex; justify-content: space-between; }
+details.card > summary::-webkit-details-marker { display: none; }
 details.card > summary::after { content: "+"; color: var(--muted); font-weight: 400; }
 details.card[open] > summary::after { content: "–"; }
-details.card > .body { padding: 0 14px 14px; }
+details.card > .body { padding: 0 16px 16px; }
 .form { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: center; font-size: .88rem; }
 .form small { display: block; color: var(--muted); font-size: .76rem; }
 .form input, .form select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); width: 130px; }
@@ -211,36 +264,49 @@ details.card > .body { padding: 0 14px 14px; }
 
 /* Lightbox */
 dialog#lb { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 94vh; width: 960px; color: #fff; }
-dialog#lb::backdrop { background: rgba(5, 8, 12, .86); }
+dialog#lb::backdrop { background: rgba(4, 10, 12, .88); }
 .lb-inner { display: grid; gap: 10px; }
-.lb-img { background: #000; border-radius: 10px; overflow: hidden; display: grid; place-items: center; max-height: 70vh; position: relative; }
+.lb-img { background: #000; border-radius: 12px; overflow: hidden; display: grid; place-items: center; max-height: 70vh; position: relative; }
 .lb-img img { width: 100%; height: 70vh; object-fit: contain; display: block; }
 .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.5); border: 0; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 1.3rem; padding: 0; }
 .lb-nav.prev { left: 10px; } .lb-nav.next { right: 10px; }
-.lb-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .86rem; font-family: var(--mono); color: #D6DEE6; }
+.lb-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .86rem; font-family: var(--mono); color: #D4E2E1; }
 .lb-meta b { color: #fff; font-weight: 500; }
 .lb-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .lb-actions button { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.2); }
 
-footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: center; }
+footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: center; }
+
+@media (prefers-reduced-motion: reduce) { .toast, .pill i, .beat.on, .shot.flash .imgbox { animation: none !important; } }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .strip div:nth-child(4) { border-left: 0; } .strip div:nth-child(n+4) { border-top: 1px solid var(--line); } }
+@media (max-width: 1100px) {
+  .monitor { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .health { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; align-items: center; }
+  .health dl { grid-template-columns: repeat(4, auto auto); }
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi.card:nth-child(4) { border-left: 0; } .kpi.card:nth-child(n+4) { border-top: 1px solid var(--line); }
+  .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; } .strip div:nth-child(4) { border-left: 0; }
+}
 @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .col { display: contents; }
-  .o-live { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
+  .o-loss { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
   .o-session { order: 6; } .o-settings { order: 7; } .o-log { order: 8; } }
 @media (max-width: 600px) {
-  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .kpi .value { font-size: 1.6rem; }
-  .kpis .kpi:last-child { grid-column: 1 / -1; }
-  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .strip div:nth-child(odd) { border-left: 0; } .strip div:nth-child(even) { border-left: 1px solid var(--line); }
-  .strip div:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .wrap { padding: 0 10px 24px; }
+  .monitor { grid-template-columns: 1fr; padding: 10px; gap: 10px; border-radius: 14px; }
+  .health { grid-template-columns: 1fr; } .health dl { grid-template-columns: 1fr auto; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi.card { border-left: 0 !important; border-top: 1px solid var(--line); } .kpi.card:nth-child(-n+2) { border-top: 0; }
+  .kpi.card:nth-child(even) { border-left: 1px solid var(--line) !important; }
+  .kpis .kpi:last-child { grid-column: 1 / -1; border-left: 0 !important; }
+  .kpi .value { font-size: 1.9rem; }
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .strip div:nth-child(odd) { border-left: 0; } .strip div:nth-child(even) { border-left: 1px solid var(--line); }
   .brand small, .brand .name { display: none; }
-  .top .wrap { gap: 8px; }
+  .top .wrap { gap: 6px; } .spacer { display: none; }
+  .pill { flex: 1 1 0; } .srcmode button { padding: 6px 8px; font-size: .76rem; }
+  #btnConn, #btnOpen { padding: 8px 12px; } button.icon { width: 36px; height: 36px; flex: none; }
+  .la-grid { grid-template-columns: 1fr; }
 }
-@media (max-width: 380px) { .live { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -248,7 +314,7 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
   <div class="wrap">
     <div class="brand" aria-label="PEEK1 Monitor">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="8" width="26" height="16" rx="8" fill="var(--blue)"/><rect x="16" y="8" width="13" height="16" rx="0" fill="var(--violet)" opacity=".85"/><rect x="3" y="8" width="26" height="16" rx="8" fill="none" stroke="var(--ink)" stroke-opacity=".15"/><circle cx="9.5" cy="16" r="3" fill="#fff"/><circle cx="22.5" cy="16" r="3" fill="#fff"/></svg>
-      <div><span class="name">PEEK1 Monitor</span><small>BLE bench diagnostics</small></div>
+      <div><span class="name">PEEK1 Monitor</span><small>Capsule link and image diagnostics</small></div>
     </div>
     <div class="srcmode" role="group" aria-label="Data source"><button data-src="live" aria-pressed="true">Live BLE</button><button data-src="file">Offline file</button></div>
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Not connected</span></div>
@@ -263,6 +329,23 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
 
 <div class="wrap">
   <div id="banners"></div>
+
+  <section class="monitor o-live" aria-label="Live capsule view">
+    <figure class="shot" id="shotF"><div class="head"><span class="f">Front</span><small id="fMeta"></small></div>
+            <div class="imgbox" id="boxF"><em>Waiting for first front image</em></div></figure>
+    <figure class="shot" id="shotB"><div class="head"><span class="b">Back</span><small id="bMeta"></small></div>
+            <div class="imgbox" id="boxB"><em>Waiting for first back image</em></div></figure>
+    <aside class="health" id="health" data-s="none" aria-live="polite">
+      <div class="state"><span class="lamp" aria-hidden="true"></span><div class="word" id="hWord">No data</div></div>
+      <div class="why" id="hWhy">Connect a capsule or open a file to start.</div>
+      <dl>
+        <dt>Delivered, last 5 min</dt><dd id="hDeliv">–</dd>
+        <dt>Missing, last 5 min</dt><dd id="hMiss">–</dd>
+        <dt>Last frame</dt><dd><span id="hAge">–</span><span class="beat" id="hBeat" aria-hidden="true"></span></dd>
+        <dt>Signal</dt><dd id="hRssi">–</dd>
+      </dl>
+    </aside>
+  </section>
 
   <section class="kpis" aria-label="Key figures">
     <div class="card kpi" id="kImages"><div class="accent"></div>
@@ -303,15 +386,6 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
 
   <div class="main">
     <div class="col">
-      <section class="card o-live">
-        <h2>Live images</h2>
-        <div class="live">
-          <figure class="shot" id="shotF"><div class="head"><span class="f">Front</span><small id="fMeta"></small></div>
-            <div class="imgbox" id="boxF"><em>Waiting for first front image</em></div></figure>
-          <figure class="shot" id="shotB"><div class="head"><span class="b">Back</span><small id="bMeta"></small></div>
-            <div class="imgbox" id="boxB"><em>Waiting for first back image</em></div></figure>
-        </div>
-      </section>
 
       <section class="card o-play">
         <h2>Playback <span class="act filters" role="group" aria-label="Playback cameras">
@@ -351,6 +425,24 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
     </div>
 
     <div class="col">
+      <section class="card o-loss" id="lossCard">
+        <h2>Loss analysis <span class="act muted" id="laScope"></span></h2>
+        <div class="la-total"><b id="laMissing">–</b><span id="laMissingSub">No data yet</span></div>
+        <div class="la-bar" id="laBar" aria-hidden="true"></div>
+        <ul class="la-key" id="laKey"></ul>
+        <div class="la-sub">When losses happened</div>
+        <canvas id="laStrip" aria-label="Missing frames over the session"></canvas>
+        <div class="legend"><span><i class="blk" style="background:var(--warn)"></i>Missing frames</span><span><i class="blk c-disc"></i>Link lost</span></div>
+        <div class="la-grid" id="laGrid"></div>
+        <div class="la-sub">How much of each cut-off frame arrived</div>
+        <div class="hist" id="laHist" aria-label="Received share of cut-off frames"></div>
+        <div class="hist-x"><span>0–25%</span><span>25–50%</span><span>50–75%</span><span>75–100%</span></div>
+        <div class="la-sub">What the pattern points to</div>
+        <ul class="la-hints" id="laHints"></ul>
+        <div class="la-fw" id="laFw"></div>
+        <div class="la-actions"><button id="laCsv">Download loss report (CSV)</button></div>
+      </section>
+
       <section class="card o-trends">
         <div class="chart-head">
           <h2 style="margin:0">Trends</h2>
@@ -608,27 +700,35 @@ function getJpeg(frame, allowRepair = true) {
 }
 
 class FrameAssembler {
+  // v10: also reports (a) stall = time from the last chunk to the header that cut the frame off,
+  // (b) "orphan" chunks that arrive with no frame header (header notification lost), and
+  // (c) overrun = more bytes than the header announced at frame end (possible mixing of two frames).
   constructor(onComplete, onDropped, log) {
-    this.totalLen = null; this.buf = []; this.bufLen = 0;
+    this.totalLen = null; this.buf = []; this.bufLen = 0; this.lastChunkTs = 0; this.infoTs = 0; this.orphanBytes = 0;
     this.onComplete = onComplete; this.onDropped = onDropped; this.log = log || (() => {});
+    this.onOrphan = null; this.onOverrun = null;
   }
   onInfo(d) {
     if (d.length < 7 || d[0] !== 0xC0 || d[1] !== 0x5A) {
       this.log(`[info] bad header, ignoring: ${Array.from(d, b => b.toString(16).padStart(2, "0")).join("")}`);
       return;
     }
-    if (this.totalLen !== null && this.bufLen < this.totalLen) this.onDropped(this.bufLen, this.totalLen);
+    const now = Date.now();
+    if (this.orphanBytes) { if (this.onOrphan) this.onOrphan(this.orphanBytes); this.orphanBytes = 0; }
+    if (this.totalLen !== null && this.bufLen < this.totalLen)
+      this.onDropped(this.bufLen, this.totalLen, now - (this.lastChunkTs || this.infoTs), now - this.infoTs);
     this.totalLen = (d[2] | (d[3] << 8) | (d[4] << 16) | (d[5] << 24)) >>> 0; // LE uint32 at 2..5
-    this.buf = []; this.bufLen = 0;
+    this.buf = []; this.bufLen = 0; this.infoTs = now; this.lastChunkTs = 0;
   }
   onChunk(d) {
-    if (this.totalLen === null) return;      // chunk before info — drop
-    this.buf.push(d); this.bufLen += d.length;
+    if (this.totalLen === null) { this.orphanBytes += d.length; return; }   // chunk with no header: counted, then dropped
+    this.buf.push(d); this.bufLen += d.length; this.lastChunkTs = Date.now();
     if (this.bufLen >= this.totalLen) {
       const out = new Uint8Array(this.bufLen);
       let o = 0; for (const c of this.buf) { out.set(c, o); o += c.length; }
-      const frame = out.slice(0, this.totalLen);
+      const frame = out.slice(0, this.totalLen), extra = this.bufLen - this.totalLen;
       this.totalLen = null; this.buf = []; this.bufLen = 0;
+      if (extra > 0 && this.onOverrun) this.onOverrun(extra);
       this.onComplete(frame);
     }
   }
@@ -671,6 +771,10 @@ function makeZip(files) {               // files: [{name, data:Uint8Array}]
 </script><script>
 // Optional, proposed firmware feature: nRF notifies its measured connection RSSI (int8 dBm) here.
 const CHAR_RSSI_UUID = "6e400005-b5a3-f393-e0a9-e50e24dcca3e";
+// PROPOSED firmware diagnostics characteristic (v10). Not in firmware yet; ignored if absent.
+// Notify payload, little-endian: u32 hvx_busy (notifications refused: NRF_ERROR_RESOURCES),
+// u32 frames_dropped_fw (frames abandoned by firmware), u32 frames_captured (frames the camera produced).
+const CHAR_DIAG_UUID = "6e400006-b5a3-f393-e0a9-e50e24dcca3e";
 const GALLERY_PAGE = 120;
 
 const $ = id => document.getElementById(id);
@@ -686,7 +790,8 @@ function freshState() {
   return { start: null, total: 0, f: 0, b: 0, bad: 0, lost: 0, seqGap: 0,
     countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [],
     frameT: [], frameBytes: [], lastTs: null, lastSeq: null, lastCrc: null, maxChunk: 0,
-    lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0, log: [] };
+    lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0, log: [],
+    lossDet: [], gapDet: [], orphan: [], overrun: [], link: [], fw: null, pend: new Map(), late: 0 };
 }
 let S = freshState();
 const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, slipNoted: false };
@@ -811,6 +916,7 @@ function ingestFrame(rec, live) {
   const frame = rec.frame instanceof Uint8Array ? rec.frame : new Uint8Array(rec.frame);
   const t = rec.ts;
   if (S.start == null) S.start = t;
+  const prevT = S.lastTs;
   S.total++; S.frameT.push(t); S.frameBytes.push([t, frame.length]); S.lastTs = t;
 
   if (frame.length < 8) { S.bad++; if (live) note("bad", `Frame too short (${frame.length} B), discarded`, t); return; }
@@ -822,25 +928,35 @@ function ingestFrame(rec, live) {
   S.lastSeq = seq; S.lastCrc = crc;
   if (seq != null && S.seqFirst == null && label !== "?") S.seqFirst = seq;
 
-  if (seq != null && SET.seq !== "off" && label !== "?") {
+  if (seq != null && SET.seq !== "off" && (SET.seq === "frame" || label !== "?")) {   // v10: unknown-camera frames still count for +1/frame seq
     const key = SET.seq === "cam" ? label : "all";
+    S.seqN = (S.seqN || 0) + 1;
     const prev = S.lastSeqBy[key];
     if (prev != null) {
       const d = (seq - prev) & 0xFFFF;
+      let late = false;
       if (d === 0) { if (live) note("warn", `Duplicate seq ${seq} (${label})`, t); }
       else if (d > 1 && d < 0x8000) {
-        S.seqGap += d - 1; S.gapT.push(t);
+        const g = { t, prevT, from: prev, to: seq, n: d - 1 };
+        S.seqGap += d - 1; S.gapT.push(t); S.gapDet.push(g);
+        if (d - 1 <= 64) for (let k = 1; k < d; k++) S.pend.set((prev + k) & 0xFFFF, g);   // may still arrive late
         if (live) note("warn", `Seq gap: ${d - 1} missing between ${prev} and ${seq}`, t);
-      } else if (d >= 0x8000) { if (live) note("info", `Seq went back ${prev} → ${seq} (device restart?)`, t); }
-    }
-    S.lastSeqBy[key] = seq;
+      } else if (d >= 0x8000) {
+        const g = S.pend.get(seq);
+        if (g) { late = true; S.pend.delete(seq); g.n--; S.seqGap--; S.late = (S.late || 0) + 1;     // v10: out-of-order frame fills its gap
+          if (live) note("info", `Seq ${seq} arrived late (after ${prev}); gap closed`, t); }
+        else if (live) note("info", `Seq went back ${prev} → ${seq} (device restart?)`, t);
+      }
+      if (S.pend.size > 4096) S.pend.clear();
+      S.lastSeqBy[key] = late ? prev : seq;     // a late frame must not move the "last seen" pointer back
+    } else S.lastSeqBy[key] = seq;
   }
 
   if (label === "F" || label === "B") S.fb++;
   if (label === "F") { S.f++; S.countF.push([t, S.f]); }
   else if (label === "B") { S.b++; S.countB.push([t, S.b]); }
   else { S.bad++; if (live) note("bad", `Unknown camera id 0x${camId.toString(16)} (seq ${seq})`, t); }
-  if (sysd) { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }
+  if (sysd && label !== "?") { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }   // v10: corrupted camera byte means bytes 7–9 (incl. voltage) are unreliable
 
   const { jpeg, status, fix, bits } = getJpeg(frame, SET.repair);
   if (fix === "hdr") { S.hdrFixed = (S.hdrFixed || 0) + 1;
@@ -867,7 +983,18 @@ function ingestEvent(ev, live) {
   if (S.start == null) S.start = ev.ts;
   if (ev.type === "lost") {
     S.lost++; S.lostT.push(ev.ts);
-    if (live) note("warn", `Incomplete frame dropped: ${ev.got}/${ev.expected} B received`, ev.ts);
+    S.lossDet.push({ t: ev.ts, got: ev.got, exp: ev.expected, stall: ev.stall ?? null, dur: ev.dur ?? null });
+    if (live) note("warn", `Incomplete frame dropped: ${ev.got}/${ev.expected} B received${ev.stall != null ? `, ${ev.stall} ms after last chunk` : ""}`, ev.ts);
+  } else if (ev.type === "orphan") {
+    S.orphan.push({ t: ev.ts, bytes: ev.bytes });
+    if (live) note("warn", `${ev.bytes} B of image data arrived without a frame header (header notification lost)`, ev.ts);
+  } else if (ev.type === "overrun") {
+    S.overrun.push({ t: ev.ts, extra: ev.extra });
+    if (live && S.overrun.length <= 3) note("warn", `Frame ended with ${ev.extra} B more than its header announced; it may contain data from the next frame`, ev.ts);
+  } else if (ev.type === "link") {
+    S.link.push({ t: ev.ts, up: ev.up, manual: !!ev.manual });
+  } else if (ev.type === "fwdiag") {
+    S.fw = { t: ev.ts, busy: ev.busy, dropped: ev.dropped, captured: ev.captured };
   } else if (ev.type === "rssi") {
     (ev.src === "link" ? S.rssiLink : S.rssiAdv).push([ev.ts, ev.dbm]);
   } else if (ev.type === "note") { addNote(ev, false); if (!live) S.log.push({ ts: ev.ts, text: `[${ev.level}] ${ev.text}` }); }
@@ -883,6 +1010,7 @@ function onLiveFrame(frame) {
   const rec = { ts: Date.now(), frame };
   if (frame.length >= 26) rec.seq = (frame[24] << 8) | frame[25];
   put("frames", rec); ingestFrame(rec, true);
+  const hb = $("hBeat"); if (hb) { hb.classList.remove("on"); void hb.offsetWidth; hb.classList.add("on"); }
   $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
 }
 function onLiveEvent(ev) {
@@ -890,7 +1018,9 @@ function onLiveEvent(ev) {
   ingestEvent(ev, true); renderStats(); scheduleDraw();
 }
 const assembler = new FrameAssembler(onLiveFrame,
-  (got, expected) => onLiveEvent({ ts: Date.now(), type: "lost", got, expected }), log);
+  (got, expected, stall, dur) => onLiveEvent({ ts: Date.now(), type: "lost", got, expected, stall, dur }), log);
+assembler.onOrphan = bytes => onLiveEvent({ ts: Date.now(), type: "orphan", bytes });
+assembler.onOverrun = extra => onLiveEvent({ ts: Date.now(), type: "overrun", extra });
 
 // ---------------- images ----------------
 function imgUrl(img) { return img.url || (img.url = URL.createObjectURL(new Blob([img.jpeg], { type: "image/jpeg" }))); }
@@ -1030,6 +1160,7 @@ function renderStats() {
   $("sReconn").textContent = R.reconnects;
   $("sSession").textContent = S.start ? fmtAge(now - S.start) : "–";
 
+  renderHealth(now); scheduleLoss();
   if (SET.stale && R.connectedSince) {
     const ref = Math.max(S.lastTs || 0, R.connectedSince), age = now - ref;
     setBanner("stale", "warn", age > SET.stale * 1000 ? `Connected, but no frame for ${fmtAge(age)}.` : null);
@@ -1042,6 +1173,162 @@ function drainRate(pts, now) {          // least-squares slope over last 10 min;
   for (const [t, v] of p) { const x = (t - t0) / 3600000; sx += x; sy += v; sxx += x * x; sxy += x * v; }
   const n = p.length, den = n * sxx - sx * sx;
   return den === 0 ? null : ((n * sxy - sx * sy) / den) * 1000;
+}
+
+// ---------------- link health + loss analysis (v10) ----------------
+function median(a) { if (!a.length) return null; const b = [...a].sort((x, y) => x - y), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+function nearestRssi(t, win = 10000) {
+  let best = null, bd = Infinity;
+  for (const [ts, v] of S.rssiLink) { const d = Math.abs(ts - t); if (d < bd && d <= win) { bd = d; best = v; } }
+  return best;
+}
+function renderHealth(now) {
+  const box = $("health"); if (!box) return;
+  const w0 = now - 300000;
+  let got = 0; for (let i = S.frameT.length - 1; i >= 0 && S.frameT[i] >= w0; i--) got++;
+  let miss = 0; for (let i = S.gapDet.length - 1; i >= 0 && S.gapDet[i].t >= w0; i--) miss += S.gapDet[i].n;
+  let cut = 0; for (let i = S.lossDet.length - 1; i >= 0 && S.lossDet[i].t >= w0; i--) cut++;
+  const seqOn = SET.seq !== "off", denom = got + (seqOn ? miss : cut);
+  const pct = denom ? (got / denom) * 100 : null;
+  const ft = S.frameT.slice(-21), avg = ft.length > 1 ? (ft[ft.length - 1] - ft[0]) / (ft.length - 1) : null;
+  const age = S.lastTs ? now - S.lastTs : null;
+  const rs = S.rssiLink[S.rssiLink.length - 1];
+  let st = "none", word = "No data", why = "Connect a capsule or open a file to start.";
+  if (OFF.active) { st = "offline"; word = "File"; why = "Viewing a saved file. Figures cover the window ending at its last frame."; }
+  else if (R.connectedSince && age != null && avg && age > Math.max(10000, avg * 5)) { st = "stalled"; word = "Stalled"; why = `Connected, but no frame for ${fmtAge(age)}.`; }
+  else if (!R.connectedSince && device && !manualDisconnect) { st = "poor"; word = "Link lost"; why = "Reconnecting to the capsule."; }
+  else if (pct != null) {
+    if (pct >= 99) { st = "good"; word = "Good"; why = "Frames are arriving complete and in sequence."; }
+    else if (pct >= 95) { st = "degraded"; word = "Degraded"; why = "Some frames are missing. See Loss analysis for the pattern."; }
+    else { st = "poor"; word = "Poor"; why = "Many frames are missing. See Loss analysis for the pattern."; }
+  } else if (R.connectedSince) { st = "none"; word = "Waiting"; why = "Connected. Waiting for the first frame."; }
+  box.dataset.s = st; $("hWord").textContent = word; $("hWhy").textContent = why;
+  $("hDeliv").textContent = pct == null ? "–" : (pct >= 99.95 ? "100" : pct.toFixed(1)) + "%";
+  $("hMiss").textContent = denom ? String(seqOn ? miss : cut) : "–";
+  $("hAge").textContent = age == null ? "–" : fmtAge(age);
+  $("hRssi").textContent = rs ? `${rs[1]} dBm` : "–";
+}
+
+let lossTimer = null;
+function scheduleLoss() { if (!lossTimer) lossTimer = setTimeout(() => { lossTimer = null; renderLoss(); }, 500); }
+
+function lossModel() {
+  const downs = S.link.filter(l => !l.up && !l.manual).map(l => l.t);
+  const nearDown = (t, before = 1000, after = 5000) => downs.some(d => d >= t - before && d <= t + after);
+  const spansDown = g => g.prevT != null && downs.some(d => d > g.prevT && d <= g.t);
+  const seqOn = SET.seq !== "off";
+  const M = seqOn ? S.gapDet.reduce((a, g) => a + g.n, 0) : null;
+  const discGaps = S.gapDet.filter(g => g.n > 0 && spansDown(g)), disc = discGaps.reduce((a, g) => a + g.n, 0);
+  const mid = S.lossDet.filter(l => !nearDown(l.t)), hdr = S.orphan.filter(o => !nearDown(o.t));
+  let never = null, overflow = false;
+  if (M != null) { const r = M - disc - mid.length - hdr.length; never = Math.max(0, r); overflow = r < 0; }
+  const evT = [...S.gapDet.filter(g => g.n > 0 && !spansDown(g)).map(g => g.t), ...mid.map(l => l.t)].sort((a, b) => a - b);
+  let burst = 0; for (let i = 0; i < evT.length; i++) if ((i && evT[i] - evT[i - 1] <= 10000) || (i < evT.length - 1 && evT[i + 1] - evT[i] <= 10000)) burst++;
+  return { downs, M, disc, mid, hdr, never, overflow, evT, burst, seqOn };
+}
+
+function renderLoss() {
+  if (!$("lossCard")) return;
+  const L = lossModel(), total = L.M != null ? L.M : L.mid.length + L.hdr.length;
+  const att = (S.seqN || 0) + (L.M || 0);
+  $("laScope").textContent = OFF.active ? "Saved file: sequence gaps only" : S.total ? "This session" : "";
+  if (!S.total && !S.lossDet.length) {
+    $("laMissing").textContent = "–"; $("laMissingSub").textContent = "No data yet";
+    for (const id of ["laBar", "laKey", "laGrid", "laHist", "laHints"]) $(id).innerHTML = ""; $("laFw").textContent = ""; drawLossStrip(L); return;
+  }
+  $("laMissing").textContent = total.toLocaleString();
+  $("laMissingSub").textContent = L.M != null && att ? `missing frames, ${((L.M / att) * 100).toFixed(2)}% of ${att.toLocaleString()} expected` : "frames cut off in transfer (sequence check is off)";
+
+  const parts = [
+    { k: "c-disc", n: L.disc, name: "During a link loss", d: "The connection dropped; frames sent meanwhile never arrived." },
+    { k: "c-mid", n: L.mid.length, name: "Cut off mid-transfer", d: "The header arrived, then the next frame started before all chunks came." },
+    { k: "c-hdr", n: L.hdr.length, name: "Header lost", d: "Image chunks arrived with no frame header, so they were discarded." },
+    { k: "c-never", n: L.never ?? 0, name: "Never started", d: OFF.active ? "Missing from the file itself: the capsule never stored these frames." : "No trace on the link: not sent, or lost completely including its header." },
+  ];
+  const sum = parts.reduce((a, p) => a + p.n, 0) || 1;
+  $("laBar").innerHTML = parts.filter(p => p.n).map(p => `<i class="${p.k}" style="width:${(p.n / sum) * 100}%" title="${p.name}: ${p.n}"></i>`).join("");
+  $("laKey").innerHTML = parts.map(p => `<li><i class="${p.k}"></i><div>${p.name}<small>${p.d}</small></div><b>${p.n.toLocaleString()}</b></li>`).join("") +
+    (L.overflow ? `<li><i></i><div><small>Cut-off and header-loss events exceed the sequence gaps, so some events refer to frames that were later received or to frames outside the sequence check. Counts are approximate.</small></div><b></b></li>` : "");
+
+  const C = S.maxChunk || null;   // notification payload size; missing bytes / C = chunks missing
+  const missCh = C ? L.mid.map(l => Math.ceil((l.exp - l.got) / C)) : [];
+  const mMiss = median(missCh), small = missCh.filter(n => n <= 2).length;
+  const fracs = L.mid.map(l => (l.exp ? l.got / l.exp : 0)), early = fracs.filter(f => f < 0.5).length;
+  const rLoss = [...L.mid.map(l => l.t), ...S.gapDet.map(g => g.t)].map(t => nearestRssi(t)).filter(v => v != null);
+  const rAll = S.rssiLink.map(p => p[1]), mrL = median(rLoss), mrA = median(rAll);
+  const mExp = median(L.mid.map(l => l.exp)), mRecv = median(S.frameBytes.map(f => f[1]));
+  const longest = S.gapDet.reduce((a, g) => Math.max(a, g.n), 0);
+  const unexpected = L.downs.length;
+  const cell = (label, val, sub) => `<div class="la-cell"><span>${label}</span><b>${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  $("laGrid").innerHTML = [
+    cell("Delivered by sequence", L.M != null && att ? (((S.seqN || 0) / att) * 100).toFixed(2) + "%" : "–", L.M != null ? `${(S.seqN || 0).toLocaleString()} received${S.late ? `, ${S.late} out of order` : ""}` : "Sequence check is off"),
+    cell("Losses in bursts", L.evT.length ? Math.round((L.burst / L.evT.length) * 100) + "%" : "–", "within 10 s of another loss"),
+    cell("Missing per cut-off frame", mMiss == null ? "–" : `${mMiss} chunk${mMiss === 1 ? "" : "s"}`, C ? `median; chunk = ${C} B. ${missCh.length ? Math.round((small / missCh.length) * 100) + "% miss ≤ 2 chunks" : ""}` : "Needs live chunk data"),
+    cell("Signal at loss", mrL == null ? "–" : `${Math.round(mrL)} dBm`, mrA == null ? "Needs firmware RSSI" : `session median ${Math.round(mrA)} dBm`),
+    cell("Size of cut-off frames", mExp == null ? "–" : kb(mExp), mRecv == null ? "" : `received frames ${kb(mRecv)}`),
+    cell("Unexpected link losses", OFF.active ? "–" : String(unexpected), longest ? `longest gap ${longest} frame${longest === 1 ? "" : "s"}` : ""),
+  ].join("");
+
+  const b = [0, 0, 0, 0]; for (const l of L.mid) { const f = l.exp ? l.got / l.exp : 0; b[Math.min(3, Math.floor(f * 4))]++; }
+  const bm = Math.max(1, ...b);
+  $("laHist").innerHTML = b.map(n => `<div style="height:${(n / bm) * 100}%" title="${n} frames"></div>`).join("");
+
+  const H = [];
+  const share = n => total ? n / total : 0;
+  if (OFF.active) H.push({ c: "", t: "This view only has the frames that reached the file.", s: "Cut-offs, header loss and link drops are measured during a live BLE session. Gaps here mean the capsule itself did not store those frames." });
+  if (share(L.disc) >= 0.4) H.push({ c: "warn", t: "Most missing frames fall inside link losses.", s: "Check the supervision timeout and connection parameters, distance and orientation. Resending from flash after reconnect would recover them." });
+  if (share(L.mid.length) >= 0.3 && missCh.length) {
+    if (small / missCh.length >= 0.6) H.push({ c: "warn", t: "Cut-off frames are almost complete: one or two chunks are missing from the middle.", s: "This is the typical pattern when the firmware drops a notification because the TX queue is full and does not retry. Confirm by counting NRF_ERROR_RESOURCES from sd_ble_gatts_hvx(). Hypothesis until the firmware counter confirms it." });
+    else if (early / missCh.length >= 0.5) H.push({ c: "warn", t: "Transfers stop partway through the frame.", s: "Points to the stream stopping (link trouble, capsule busy or resetting, PC sleep or tab throttling) rather than single dropped notifications." });
+  }
+  if (share(L.hdr.length) >= 0.15) H.push({ c: "warn", t: "Frame headers are being lost.", s: "The header goes on its own characteristic. Sending it inside the first data chunk removes this failure mode." });
+  if (!OFF.active && L.never != null && share(L.never) >= 0.4) H.push({ c: "warn", t: "Most gaps leave no trace on the link.", s: "Compare against the flash dump: if those sequence numbers are in flash, the loss is in BLE transmission; if not, the capsule never captured them." });
+  if (mrL != null && mrA != null && mrA - mrL >= 6) H.push({ c: "warn", t: `Losses happen at weaker signal (${Math.round(mrL)} vs ${Math.round(mrA)} dBm).`, s: "RF margin is a factor: antenna, enclosure, distance." });
+  if (mExp != null && mRecv != null && mExp > mRecv * 1.15) H.push({ c: "", t: "Larger frames are cut off more often.", s: "Longer transfers spend more time exposed to queue overflow or link trouble. Higher throughput (2M PHY, larger MTU and data length) shortens that window." });
+  if (L.evT.length >= 5 && L.burst / L.evT.length >= 0.6) H.push({ c: "", t: "Losses come in bursts rather than evenly.", s: "Bursts point to events (movement, interference, CPU load) rather than a constant bit error rate." });
+  if (S.overrun.length) H.push({ c: "warn", t: `${S.overrun.length} frame${S.overrun.length === 1 ? "" : "s"} ended with more bytes than announced.`, s: "If the firmware always sends an exact final chunk, these frames may contain the start of the next frame. Treat their images with caution." });
+  if (!H.length) H.push({ c: "", t: total ? "No dominant pattern yet." : "No losses in this session.", s: total ? "Keep the session running; patterns become clear after a few dozen losses." : "" });
+  $("laHints").innerHTML = H.map(h => `<li class="${h.c}">${h.t}${h.s ? `<small>${h.s}</small>` : ""}</li>`).join("");
+
+  $("laFw").innerHTML = S.fw
+    ? `Firmware counters: <b>${S.fw.busy.toLocaleString()}</b> notifications refused (queue full), <b>${S.fw.dropped.toLocaleString()}</b> frames abandoned, <b>${S.fw.captured.toLocaleString()}</b> frames captured.`
+    : OFF.active ? "" : "Firmware counters: not available. Add the diagnostics characteristic (6e400006) to confirm the cause from the capsule side.";
+  drawLossStrip(L);
+}
+
+function drawLossStrip(L) {
+  const cv = $("laStrip"); if (!cv) return;
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 300, Hh = cv.clientHeight || 46;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr);
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, Hh);
+  g.fillStyle = cssVar("--grid"); g.fillRect(0, Hh - 1, W, 1);
+  if (!S.start) return;
+  const t0 = S.start, t1 = Math.max(nowT(), t0 + 1000), nb = Math.max(20, Math.min(160, Math.floor(W / 4)));
+  const bins = new Array(nb).fill(0), X = t => ((t - t0) / (t1 - t0)) * W, bi = t => Math.min(nb - 1, Math.max(0, Math.floor(((t - t0) / (t1 - t0)) * nb)));
+  for (const gp of S.gapDet) bins[bi(gp.t)] += gp.n;
+  if (!L.seqOn) for (const l of S.lossDet) bins[bi(l.t)]++;
+  const mx = Math.max(1, ...bins), bw = W / nb;
+  g.fillStyle = cssVar("--warn");
+  bins.forEach((n, i) => { if (!n) return; const h = Math.max(3, (n / mx) * (Hh - 8)); g.fillRect(i * bw + 0.5, Hh - 1 - h, Math.max(1, bw - 1), h); });
+  g.fillStyle = "#7B8BC4";
+  for (const d of L.downs) g.fillRect(Math.round(X(d)) - 1, 0, 2, Hh - 1);
+  g.fillStyle = cssVar("--muted"); g.font = "11px system-ui, sans-serif"; g.textBaseline = "top";
+  g.fillText(`peak ${mx}/bin`, 2, 1);
+}
+
+function exportLossCsv() {
+  const L = lossModel(), rows = [["time_iso", "type", "seq_from", "seq_to", "frames_missing", "bytes_received", "bytes_expected", "stall_ms", "rssi_dbm", "note"]];
+  const iso = t => new Date(t).toISOString();
+  const spans = g => g.prevT != null && L.downs.some(d => d > g.prevT && d <= g.t);
+  for (const gp of S.gapDet.filter(g => g.n > 0)) rows.push([iso(gp.t), "seq_gap", gp.from, gp.to, gp.n, "", "", "", nearestRssi(gp.t) ?? "", spans(gp) ? "spans link loss" : ""]);
+  for (const l of S.lossDet) rows.push([iso(l.t), "cut_off", "", "", "", l.got, l.exp, l.stall ?? "", nearestRssi(l.t) ?? "", ""]);
+  for (const o of S.orphan) rows.push([iso(o.t), "header_lost", "", "", "", o.bytes, "", "", nearestRssi(o.t) ?? "", ""]);
+  for (const o of S.overrun) rows.push([iso(o.t), "overrun", "", "", "", "", "", "", "", `${o.extra} B extra`]);
+  for (const k of S.link) rows.push([iso(k.t), k.up ? "link_up" : "link_down", "", "", "", "", "", "", "", k.manual ? "by user" : ""]);
+  rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0] < b[0] ? -1 : 1));
+  if (OFF.active) rows.push(["", "", "", "", "", "", "", "", "", "Offline file: times are estimated from seq"]);
+  const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(",")).join("\n");
+  download(new Blob([csv], { type: "text/csv" }), `peek1_loss_${new Date().toISOString().replace(/[:.]/g, "-")}.csv`);
 }
 
 // ---------------- charts ----------------
@@ -1433,6 +1720,8 @@ function onInfoEvt(e) { assembler.onInfo(toBytes(e.target.value)); }        // n
 function onTxEvt(e) { const d = toBytes(e.target.value); if (d.length > S.maxChunk) S.maxChunk = d.length; assembler.onChunk(d); }
 function onRssiEvt(e) { const d = toBytes(e.target.value); if (!d.length) return;
   onLiveEvent({ ts: Date.now(), type: "rssi", src: "link", dbm: d[0] > 127 ? d[0] - 256 : d[0] }); }
+function onDiagEvt(e) { const d = toBytes(e.target.value); if (d.length < 12) return;
+  onLiveEvent({ ts: Date.now(), type: "fwdiag", busy: u32le(d, 0), dropped: u32le(d, 4), captured: u32le(d, 8) }); }
 function onAdvEvt(e) {
   if (typeof e.rssi !== "number") return;
   const now = Date.now();
@@ -1462,7 +1751,9 @@ async function connectGatt() {
     await info.startNotifications(); await tx.startNotifications();
     try { const rc = await svc.getCharacteristic(CHAR_RSSI_UUID); rc.addEventListener("characteristicvaluechanged", onRssiEvt);
       await rc.startNotifications(); log("[ble] nRF RSSI characteristic found"); } catch { /* not in firmware yet */ }
-    R.connectedSince = Date.now();
+    try { const dc = await svc.getCharacteristic(CHAR_DIAG_UUID); dc.addEventListener("characteristicvaluechanged", onDiagEvt);
+      await dc.startNotifications(); log("[ble] firmware diagnostics characteristic found"); } catch { /* proposed, not in firmware yet */ }
+    R.connectedSince = Date.now(); onLiveEvent({ ts: Date.now(), type: "link", up: true });
     if (R.wasUnexpected) { R.reconnects++; R.wasUnexpected = false; note("ok", "Reconnected"); toast("Reconnected"); }
     else note("ok", `Connected to ${device.name || DEVICE_NAME}`);
     setPill("connected", `Connected · ${device.name || DEVICE_NAME}`); setConnButton("Disconnect", false);
@@ -1496,6 +1787,7 @@ async function onConnClicked() {
     if (!device) {
       device = await navigator.bluetooth.requestDevice({ filters: [{ name: DEVICE_NAME }, { services: [SERVICE_UUID] }], optionalServices: [SERVICE_UUID] });
       device.addEventListener("gattserverdisconnected", () => {
+        onLiveEvent({ ts: Date.now(), type: "link", up: false, manual: manualDisconnect });
         markDisconnected(); renderStats();
         if (manualDisconnect) { note("info", "Disconnected by user"); setPill("", "Disconnected"); setConnButton("Connect", true); }
         else { R.wasUnexpected = true; note("bad", "Link lost unexpectedly"); toast("Link lost, reconnecting…"); scheduleReconnect(); }
@@ -1762,6 +2054,8 @@ async function restore() {
 $("btnConn").addEventListener("click", onConnClicked);
 $("btnExport").addEventListener("click", exportZip);
 $("btnClear").addEventListener("click", clearSession);
+$("laCsv").addEventListener("click", exportLossCsv);
+window.addEventListener("resize", () => scheduleLoss());
 applyTheme(); bindSettings();
 (async () => {
   await openDb();
