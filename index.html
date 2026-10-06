@@ -291,6 +291,9 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
 .form.rm-form input, .form.rm-form select { width: 100%; }
 .rm-baa { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--warnbg); }
 .rm-baa input { margin-top: 3px; }
+fieldset.rm-baa { border: 0; display: grid; gap: 8px; flex-direction: column; }
+fieldset.rm-baa legend { font-weight: 600; padding: 0; margin-bottom: 4px; float: left; width: 100%; }
+fieldset.rm-baa label { display: flex; gap: 8px; align-items: flex-start; }
 .rm-hint { margin-top: 12px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--warn); background: var(--warnbg); font-size: .86rem; }
 .rm-hint b { display: block; margin-bottom: 2px; }
 .rm-setup { margin-top: 14px; font-size: .86rem; }
@@ -567,7 +570,10 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
           <label for="rmRoom">Room<small>Same name on the gateway and every viewer.</small></label><input id="rmRoom" placeholder="e.g. bench-a" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
           <label for="rmSecret">Room passphrase<small>Encrypts frames end to end. At least 12 characters. Never sent or stored.</small></label><input id="rmSecret" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
         </div>
-        <label class="rm-baa" id="rmBaaRow"><input type="checkbox" id="rmBaa"> This Supabase project has the HIPAA add-on enabled and a signed BAA. Required before patient data leaves this PC.</label>
+        <fieldset class="rm-baa" id="rmBaaRow"><legend>What will this gateway share?</legend>
+          <label><input type="radio" name="rmMode" id="rmModeTest" value="test"> <span><b>Test data only.</b> Only replayed .bin files are sent. Live capsule frames stay on this PC. Use this with a free or test project.</span></label>
+          <label><input type="radio" name="rmMode" id="rmBaa" value="patient"> <span><b>Patient data.</b> This Supabase project has the HIPAA add-on enabled and a signed BAA.</span></label>
+        </fieldset>
         <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button><button id="rmLink" hidden>Copy viewer link</button></div>
         <div class="rm-hint" id="rmHint" hidden></div>
         <div class="la-grid" id="rmStats"></div>
@@ -672,7 +678,7 @@ with check ( (select realtime.topic()) like 'peek1:%'
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v16 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v17 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1590,7 +1596,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v16 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v17 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1611,7 +1617,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v16, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v17, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2092,6 +2098,7 @@ async function onConnClicked() {
   if (OFF.active) return;
   if (RM.role === "viewer") { toast("Stop remote viewing before connecting a capsule here"); return; }
   if (SIM.on) simStop("real capsule connecting");
+  if (RM.role === "gateway" && RM.mode === "test") toast("Remote is in test-data mode: this capsule's frames will not be shared");
   if (!navigator.bluetooth) { showSupportBanner(); return; }
   manualDisconnect = false;
   try {
@@ -2432,7 +2439,7 @@ async function supabaseTransport(cfg, onMsg) {
   }
   RM.user = (session.user && session.user.email) || "";
   await client.realtime.setAuth(session.access_token);
-  const chan = client.channel("peek1:" + cfg.room, { config: { private: true, broadcast: { self: false, ack: false } } });
+  const chan = client.channel("peek1:" + cfg.room, { config: { private: true, broadcast: { self: false, ack: true } } });   // v17: relay confirms each message
   chan.on("broadcast", { event: "m" }, msg => onMsg(msg.payload));
   await new Promise((res, rej) => {
     const to = setTimeout(() => rej(new Error("Joining the room timed out.")), 15000);
@@ -2448,10 +2455,21 @@ async function supabaseTransport(cfg, onMsg) {
 }
 async function rmSend(obj) {
   if (!RM.t || !RM.key) return;
-  try { await RM.t.send(await rmSeal(obj)); RM.sent++; } catch (e) { RM.sendErr++; if (RM.sendErr === 1) note("warn", `Remote: send failed (${e.message || e})`); }
+  try {
+    const r = await RM.t.send(await rmSeal(obj));
+    if (r !== undefined && r !== "ok") { RM.relayErr = (RM.relayErr || 0) + 1; RM.lastRelay = String(r);
+      if (RM.relayErr === 1) note("warn", `Remote: the relay did not accept a message (${r}). Check the "send" policy in Supabase.`); }
+    else { RM.sent++; if (r === "ok") RM.relayOk = (RM.relayOk || 0) + 1; }
+  } catch (e) { RM.sendErr++; if (RM.sendErr === 1) note("warn", `Remote: send failed (${e.message || e})`); }
+  rmRenderSoon();
 }
-function rmSendFrame(rec) { if (RM.role === "gateway") rmSend({ k: "f", ts: rec.ts, n: ++RM.n, b: b64e(rec.frame) }); }
-function rmSendEvent(ev) { if (RM.role === "gateway" && ev.type !== "note") rmSend({ k: "e", ev }); }
+function rmLiveBlocked() {                      // v17: in test-data mode only replayed files leave this PC
+  if (RM.mode !== "test" || SIM.on) return false;
+  RM.blocked++; if (RM.blocked === 1) { note("warn", "Remote: live capsule frames are not shared in test-data mode"); toast("Test-data mode: live capsule frames are not shared"); }
+  rmRender(); return true;
+}
+function rmSendFrame(rec) { if (RM.role === "gateway" && !rmLiveBlocked()) rmSend({ k: "f", ts: rec.ts, n: ++RM.n, b: b64e(rec.frame) }); }
+function rmSendEvent(ev) { if (RM.role === "gateway" && ev.type !== "note" && !(RM.mode === "test" && !SIM.on)) rmSend({ k: "e", ev }); }
 async function rmSendHistory() {
   const recent = S.imgs.slice(-30);
   for (const img of recent) await rmSend({ k: "f", ts: img.ts, n: "h" + img.ts, b: b64e(img.frame), hist: true });
@@ -2491,7 +2509,7 @@ function rmValidate(c) {
   if (c.backend === "supabase") {
     if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL must start with https://";
     if (!c.key) return "Enter the publishable key.";
-    if (c.role === "gateway" && !$("rmBaa").checked) return "Confirm the BAA and HIPAA add-on before sharing patient data.";
+    if (c.role === "gateway" && !$("rmBaa").checked && !$("rmModeTest").checked) return "Choose what this gateway will share: test data only, or patient data (BAA project).";
   }
   if (c.role === "viewer" && device && device.gatt && device.gatt.connected) return "Disconnect the capsule here before watching remotely.";
   if (c.role === "viewer" && OFF.active) return "Switch the source to Live BLE before watching remotely.";
@@ -2506,11 +2524,12 @@ async function rmStart() {
     RM.sent = RM.recv = RM.bad = RM.sendErr = 0; RM.viewers.clear(); RM.seen.clear(); RM.lastHb = 0; RM.gw = null; RM.firstHello = true;
     $("rmRoom").value = c.room;                                     // show the normalised room name
     RM.backend = c.backend; RM.startedAt = Date.now();
+    RM.mode = c.backend === "local" ? "local" : ($("rmBaa").checked ? "patient" : "test"); RM.blocked = 0; RM.relayErr = 0; RM.relayOk = 0; RM.lastRelay = "";
     RM.t = c.backend === "local" ? localTransport(c.room, rmOnMsg) : await supabaseTransport(c, rmOnMsg);
     if (c.backend === "local") RM.user = "local";
     RM.role = c.role;
     $("rmSecret").value = ""; $("rmPass").value = "";                       // never keep secrets in the form
-    SET.rmBackend = c.backend; SET.rmUrl = c.url; SET.rmKey = c.key; SET.rmRoom = c.room; if ($("rmBaa").checked) SET.rmBaaUrl = c.url; saveSettings();
+    SET.rmBackend = c.backend; SET.rmUrl = c.url; SET.rmKey = c.key; SET.rmRoom = c.room; SET.rmBaaUrl = $("rmBaa").checked ? c.url : ""; saveSettings();
     if (RM.role === "viewer") {
       resetView(); renderGallery(); renderTimeline(); pvBuild("end");
       R.connectedSince = Date.now(); setPill("connecting", `Remote · waiting for gateway in ${c.room}`);
@@ -2553,17 +2572,23 @@ function rmDiagnose() {
     if (RM.bad > 0) h = ["Messages arrive but cannot be decrypted.", "The room passphrase is different from the gateway's. Retype it on both devices (it is case-sensitive)."];
     else if (RM.backend === "local") h = ["Local test only connects tabs in this same browser on this computer.", "For a phone or another PC, choose Relay: Supabase Realtime on both the gateway and this device."];
     else h = [`Nothing heard in room "${RM.room}".`, "Check that the gateway shows Sharing with exactly this room name, both devices use the same Project URL, and the gateway page is still open."];
+  } else if (RM.role === "gateway" && RM.relayErr > 0 && RM.sent === 0) {
+    h = ["The relay is not accepting messages from this gateway.", `Supabase answered "${RM.lastRelay}". Run the second SQL policy (peek1 rooms: send) from the setup section, then press Stop and Start.`];
+  } else if (RM.role === "gateway" && RM.mode === "test" && RM.blocked > 0 && !SIM.on) {
+    h = ["Live capsule frames are not being shared.", "This gateway is in test-data mode. Replay a .bin file to test, or use a BAA project and choose Patient data to share live frames."];
   } else if (RM.role === "gateway" && since > 30000 && !RM.viewers.size) {
     if (RM.bad > 0) h = ["A viewer is trying to join with a different passphrase.", "Ask them to retype the room passphrase."];
     else if (RM.backend === "local") h = ["No viewer yet. Local test only reaches tabs in this browser.", "Open this page in another tab or window of this browser, or switch both sides to Supabase Realtime."];
   }
   box.hidden = !h; if (h) box.innerHTML = `<b>${esc(h[0])}</b>${esc(h[1])}`;
 }
+let rmRenderT = 0;
+function rmRenderSoon() { if (!rmRenderT) rmRenderT = setTimeout(() => { rmRenderT = 0; rmRender(); }, 400); }
 function rmSetState(cls, text) { const el = $("rmState"); el.className = "act muted " + (cls || ""); el.textContent = text; }
 function rmRender() {
   const on = RM.role !== "off";
   $("rmStart").hidden = on; $("rmStop").hidden = !on;
-  for (const id of ["rmRole", "rmBackend", "rmUrl", "rmKey", "rmEmail", "rmPass", "rmRoom", "rmSecret", "rmBaa"]) $(id).disabled = on;
+  for (const id of ["rmRole", "rmBackend", "rmUrl", "rmKey", "rmEmail", "rmPass", "rmRoom", "rmSecret", "rmBaa", "rmModeTest"]) $(id).disabled = on;
   const sbOn = $("rmBackend").value === "supabase";
   q("#remoteCard .sb").forEach(el => { el.hidden = !sbOn; });
   $("rmBaaRow").hidden = !(sbOn && $("rmRole").value !== "viewer");
@@ -2573,7 +2598,9 @@ function rmRender() {
   if (!on) { $("rmStats").innerHTML = ""; $("rmHint").hidden = true; crBadge("remote", 0); return; }
   const now = Date.now(), live = [...RM.viewers.values()].filter(v => now - v.t < 60000);
   $("rmStats").innerHTML = RM.role === "gateway"
-    ? cell("Viewers watching", String(live.length), live.map(v => v.who).filter(Boolean).slice(0, 3).join(", ")) + cell("Frames sent", RM.sent.toLocaleString(), RM.sendErr ? `${RM.sendErr} send errors` : RM.t ? RM.t.label : "") +
+    ? cell("Viewers watching", String(live.length), live.map(v => v.who).filter(Boolean).slice(0, 3).join(", ")) +
+      cell(RM.backend === "supabase" ? "Accepted by relay" : "Messages sent", RM.sent.toLocaleString(), RM.relayErr ? `${RM.relayErr} not accepted (${RM.lastRelay})` : RM.sendErr ? `${RM.sendErr} send errors` : RM.t ? RM.t.label : "") +
+      (RM.mode === "test" ? cell("Data mode", "Test only", RM.blocked ? `${RM.blocked} live frames kept on this PC` : "replayed files only") : RM.mode === "patient" ? cell("Data mode", "Patient (BAA)", "live capsule frames shared") : "") +
       cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), "could not be decrypted")
     : cell("Gateway", RM.lastHb && now - RM.lastHb < 15000 ? "Online" : "Not heard", RM.lastHb ? `last heartbeat ${fmtAge(now - RM.lastHb)} ago` : "waiting") + cell("Frames received", S.total.toLocaleString(), "kept in memory only") +
       cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), RM.bad ? "wrong passphrase?" : "none");
@@ -2637,6 +2664,7 @@ function simRender() {
 function rmInit() {
   $("rmBackend").value = SET.rmBackend || "supabase"; $("rmUrl").value = SET.rmUrl || ""; $("rmKey").value = SET.rmKey || ""; $("rmRoom").value = SET.rmRoom || "";
   $("rmBaa").checked = !!SET.rmUrl && SET.rmBaaUrl === SET.rmUrl;
+  if (!$("rmBaa").checked) $("rmModeTest").checked = true;
   $("rmBackend").addEventListener("change", rmRender); $("rmRole").addEventListener("change", rmRender);
   $("rmUrl").addEventListener("change", () => { $("rmBaa").checked = SET.rmBaaUrl && SET.rmBaaUrl === $("rmUrl").value.trim().replace(/\/+$/, ""); });
   $("rmStart").addEventListener("click", rmStart); $("rmStop").addEventListener("click", () => rmStop("by user"));
