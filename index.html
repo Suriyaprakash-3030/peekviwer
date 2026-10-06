@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#1F5FAD">
 <meta name="robots" content="noindex, nofollow">
 <title>PEEK1 Monitor</title>
+<meta name="author" content="Suriyaprakash Munuswamy">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='9' width='24' height='14' rx='7' fill='%231F5FAD'/%3E%3Ccircle cx='11' cy='16' r='3' fill='white'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -284,6 +285,62 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
   .rp-flags li, .la-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+/* ---------- Remote viewing (v14) ---------- */
+.rm-note { font-size: .84rem; color: var(--muted); margin: 0 0 12px; }
+.form.rm-form { grid-template-columns: minmax(120px, 170px) minmax(0, 1fr); }
+.form.rm-form input, .form.rm-form select { width: 100%; }
+.rm-baa { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--warnbg); }
+.rm-baa input { margin-top: 3px; }
+.rm-setup { margin-top: 14px; font-size: .86rem; }
+.rm-setup summary { cursor: pointer; font-weight: 500; }
+.rm-setup ol { padding-left: 20px; } .rm-setup li { margin: 6px 0; }
+.rm-sql { font-family: var(--mono); font-size: .74rem; background: var(--panel2); padding: 10px 12px; border-radius: 8px; overflow-x: auto; white-space: pre; }
+#rmState.on { color: var(--ok); font-weight: 600; } #rmState.err { color: var(--bad); font-weight: 600; }
+.crtabs { display: none; }
+
+/* ---------- Control room: desktop, one screen, no page scroll (v14) ---------- */
+@media (min-width: 1280px) and (min-height: 700px) {
+  html, body { height: 100%; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  header.top { position: static; flex: none; }
+  header.top .wrap { max-width: none; padding-left: 16px; padding-right: 16px; }
+  body > .wrap { flex: 1; min-height: 0; width: 100%; max-width: none; padding: 12px 16px 10px; display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(440px, 33vw, 640px); grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "ban side" "mon side" "kpi side" "strip side"; column-gap: 16px; }
+  #banners { grid-area: ban; margin: 0 0 10px; }
+  .monitor { grid-area: mon; margin: 0; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .monitor .shot { display: flex; flex-direction: column; min-height: 0; }
+  .monitor .imgbox { flex: 1; aspect-ratio: auto; min-height: 0; }
+  .monitor .health { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "state why" "dl dl";
+    align-items: center; gap: 6px 16px; padding: 10px 16px; }
+  .monitor .health .state { grid-area: state; }
+  .monitor .health .why { grid-area: why; min-height: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .monitor .health dl { grid-area: dl; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+  .monitor .health dd { text-align: left; margin-right: 18px; }
+  .monitor .imgbox { min-height: 160px; }
+  #banners .banner { padding: 6px 12px; font-size: .82rem; }
+  .kpis { grid-area: kpi; margin-top: 12px; }
+  .kpi { padding: 10px 14px 9px; } .kpi .value { font-size: 1.9rem; }
+  .strip { grid-area: strip; margin-top: 8px; }
+  .main { grid-area: side; margin: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; overscroll-behavior: contain; }
+  .main > .col { display: contents; }
+  .crtabs { display: flex; flex-wrap: wrap; gap: 4px; position: sticky; top: 0; z-index: 2; background: var(--bg); padding-bottom: 6px; flex: none; }
+  .crtabs button { padding: 6px 11px; font-size: .84rem; border-radius: 7px; position: relative; }
+  .crtabs button[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .crtabs button[data-alert]::after { content: attr(data-alert); position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px;
+    border-radius: 9px; background: var(--bad); color: #fff; font-size: .68rem; line-height: 17px; text-align: center; }
+  .main .card, .main details.card { display: none; flex: none; }
+  .main .card.tab-on, .main details.card.tab-on { display: block; }
+  .gallery { max-height: none; }
+  footer { display: none; }
+}
+@media (min-width: 1280px) and (min-height: 700px) and (max-height: 900px) {
+  .strip { display: none; }
+  .monitor { padding: 10px; gap: 10px; }
+  .monitor .health .word { font-size: 1.35rem; }
+  .kpi { padding: 8px 12px 7px; } .kpi .value { font-size: 1.55rem; } .kpi .sub { font-size: .76rem; }
+}
+
 /* Tools / settings / log */
 .tools { display: flex; gap: 8px; flex-wrap: wrap; }
 details.card { padding: 0; }
@@ -352,7 +409,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
   <div class="wrap">
     <div class="brand" aria-label="PEEK1 Monitor">
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="8" width="26" height="16" rx="8" fill="var(--blue)"/><rect x="16" y="8" width="13" height="16" rx="0" fill="var(--violet)" opacity=".85"/><rect x="3" y="8" width="26" height="16" rx="8" fill="none" stroke="var(--ink)" stroke-opacity=".15"/><circle cx="9.5" cy="16" r="3" fill="#fff"/><circle cx="22.5" cy="16" r="3" fill="#fff"/></svg>
-      <div><span class="name">PEEK1 Monitor</span><small>Capsule link and image diagnostics</small></div>
+      <div><span class="name">PEEK1 Monitor</span><small>Created by Suriyaprakash Munuswamy</small></div>
     </div>
     <div class="srcmode" role="group" aria-label="Data source"><button data-src="live" aria-pressed="true">Live BLE</button><button data-src="file">Offline file</button></div>
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Not connected</span></div>
@@ -424,6 +481,11 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
   </section>
 
   <div class="main">
+    <nav class="crtabs" id="crTabs" role="tablist" aria-label="Panels">
+      <button role="tab" data-tab="trends">Trends</button><button role="tab" data-tab="loss">Loss</button><button role="tab" data-tab="report">Report</button>
+      <button role="tab" data-tab="play">Playback</button><button role="tab" data-tab="gallery">Gallery</button><button role="tab" data-tab="events">Events</button>
+      <button role="tab" data-tab="remote">Remote</button><button role="tab" data-tab="setup">Setup</button>
+    </nav>
     <div class="col">
 
       <section class="card o-play">
@@ -486,6 +548,43 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         <h2>Session report <span class="act muted" id="rpWhen"></span></h2>
         <div id="rpBody"><div class="empty">The report fills in as frames arrive or when you open a file.</div></div>
         <div class="rp-actions"><button id="rpPrint">Print or save as PDF</button><button id="rpDl">Download report (HTML)</button></div>
+      </section>
+
+      <section class="card o-remote" id="remoteCard">
+        <h2>Remote viewing <span class="act muted" id="rmState">Off</span></h2>
+        <p class="rm-note">Watch this session from any device, anywhere. This PC (the gateway) relays every frame end-to-end encrypted. Viewers sign in and enter the room passphrase; the relay never sees images.</p>
+        <div class="form rm-form">
+          <label for="rmRole">This device</label>
+          <select id="rmRole"><option value="off">Off</option><option value="gateway">Gateway: share this session</option><option value="viewer">Viewer: watch a session</option></select>
+          <label for="rmBackend">Relay</label>
+          <select id="rmBackend"><option value="supabase">Supabase Realtime</option><option value="local">Local test (two tabs, this computer)</option></select>
+          <label for="rmUrl" class="sb">Project URL</label><input id="rmUrl" class="sb" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false">
+          <label for="rmKey" class="sb">Publishable key</label><input id="rmKey" class="sb" placeholder="sb_publishable_…" autocomplete="off" spellcheck="false">
+          <label for="rmEmail" class="sb">Email</label><input id="rmEmail" class="sb" type="email" autocomplete="username">
+          <label for="rmPass" class="sb">Password</label><input id="rmPass" class="sb" type="password" autocomplete="current-password">
+          <label for="rmRoom">Room<small>Same name on the gateway and every viewer.</small></label><input id="rmRoom" placeholder="e.g. bench-a" autocomplete="off" spellcheck="false">
+          <label for="rmSecret">Room passphrase<small>Encrypts frames end to end. At least 12 characters. Never sent or stored.</small></label><input id="rmSecret" type="password" autocomplete="off">
+        </div>
+        <label class="rm-baa" id="rmBaaRow"><input type="checkbox" id="rmBaa"> This Supabase project has the HIPAA add-on enabled and a signed BAA. Required before patient data leaves this PC.</label>
+        <div class="la-actions"><button id="rmStart" class="primary">Start</button><button id="rmStop" hidden>Stop</button><button id="rmSignOut" class="sb">Sign out</button></div>
+        <div class="la-grid" id="rmStats"></div>
+        <details class="rm-setup"><summary>One-time Supabase setup</summary>
+          <ol>
+            <li>Use the Team plan with the HIPAA add-on, and sign the BAA in the dashboard <b>before</b> any patient data is sent. Encryption alone does not replace the BAA.</li>
+            <li>Authentication: turn off public sign-ups and create an account for each person allowed to view.</li>
+            <li>Run this once in the SQL editor. It lets signed-in users join only private rooms named <code>peek1:…</code>:</li>
+          </ol>
+<pre class="rm-sql">create policy "peek1 rooms: receive"
+on realtime.messages for select to authenticated
+using ( (select realtime.topic()) like 'peek1:%'
+        and realtime.messages.extension = 'broadcast' );
+
+create policy "peek1 rooms: send"
+on realtime.messages for insert to authenticated
+with check ( (select realtime.topic()) like 'peek1:%'
+             and realtime.messages.extension = 'broadcast' );</pre>
+          <p class="rm-note">Then copy the Project URL and publishable key from Project Settings → API. Both are public by design; access is controlled by sign-in and the policies above. Share the room passphrase in person or by phone, never in the same message as the link.</p>
+        </details>
       </section>
 
       <section class="card o-trends">
@@ -559,7 +658,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v13 · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v14 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -863,7 +962,7 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream" };
+const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream", crTab: "trends", rmBackend: "supabase", rmUrl: "", rmKey: "", rmRoom: "", rmBaaUrl: "" };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
 
@@ -950,6 +1049,7 @@ function openDb() {
 const OFF = { active: false, names: "", frames: [], events: [], inputs: null, issues: 0 };
 function nowT() { return OFF.active ? (S.lastTs ?? Date.now()) : Date.now(); }
 function put(store, rec) {
+  if (typeof RM !== "undefined" && RM.role === "viewer") return;   // v14: remote viewers keep nothing on the device
   if (OFF.active) return;
   mem[store].push(rec);
   if (!db) return;
@@ -1099,12 +1199,13 @@ function checkBattery(v, t) {
 function onLiveFrame(frame) {
   const rec = { ts: Date.now(), frame };
   if (frame.length >= 26) rec.seq = (frame[24] << 8) | frame[25];
-  put("frames", rec); ingestFrame(rec, true);
+  put("frames", rec); ingestFrame(rec, true); rmSendFrame(rec);
   const hb = $("hBeat"); if (hb) { hb.classList.remove("on"); void hb.offsetWidth; hb.classList.add("on"); }
   $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
 }
 function onLiveEvent(ev) {
   if (ev.type !== "note") put("events", ev);
+  rmSendEvent(ev);
   ingestEvent(ev, true); renderStats(); scheduleDraw();
 }
 const assembler = new FrameAssembler(onLiveFrame,
@@ -1343,7 +1444,7 @@ function renderLoss() {
     $("laMissing").textContent = "–"; $("laMissingSub").textContent = "No data yet";
     for (const id of ["laBar", "laKey", "laGrid", "laHist", "laHints"]) $(id).innerHTML = ""; $("laFw").textContent = ""; drawLossStrip(L); return;
   }
-  $("laMissing").textContent = total.toLocaleString();
+  $("laMissing").textContent = total.toLocaleString(); crBadge("loss", total);
   $("laMissingSub").textContent = L.M != null && att ? `missing frames, ${((L.M / att) * 100).toFixed(2)}% of ${att.toLocaleString()} expected` : "frames cut off in transfer (sequence check is off)";
 
   const parts = [
@@ -1474,13 +1575,15 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
   ["First below 3.3 V", dash(d.below33 != null ? `seq ${d.below33}` : null)], ["First below 3.0 V", dash(d.below30 != null ? `seq ${d.below30}` : null)]])}
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
-</div>`;
+</div>
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v14 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
   $("rpWhen").textContent = S.total ? `updated ${tClock(Date.now())}` : "";
   if (!S.total) { $("rpBody").innerHTML = `<div class="empty">The report fills in as frames arrive or when you open a file.</div>`; return; }
   $("rpBody").innerHTML = reportHTML();
+  crBadge("report", reportFindings(reportData()).filter(f => f.c === "bad").length);
 }
 function printReport() {
   renderReport();
@@ -1494,7 +1597,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v13</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v14, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -1973,6 +2076,7 @@ async function onConnClicked() {
     setPill("", "Disconnected"); setConnButton("Connect", true); return;
   }
   if (OFF.active) return;
+  if (RM.role === "viewer") { toast("Stop remote viewing before connecting a capsule here"); return; }
   if (!navigator.bluetooth) { showSupportBanner(); return; }
   manualDisconnect = false;
   try {
@@ -2250,10 +2354,214 @@ async function restore() {
   return merged.length;
 }
 
+// ---------------- control room tabs (v14) ----------------
+const CR_TABS = { trends: [".o-trends"], loss: [".o-loss"], report: [".o-report"], play: [".o-play"], gallery: [".o-gallery"],
+  events: [".o-events"], remote: [".o-remote"], setup: [".o-session", ".o-settings", ".o-log"] };
+function crSelect(tab) {
+  if (!CR_TABS[tab]) tab = "trends";
+  SET.crTab = tab; saveSettings();
+  for (const [k, sels] of Object.entries(CR_TABS)) for (const sel of sels) q(sel).forEach(el => el.classList.toggle("tab-on", k === tab));
+  q("#crTabs button").forEach(b => { const on = b.dataset.tab === tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+  if (tab === "setup") q(".o-settings, .o-log").forEach(d => { if (d.tagName === "DETAILS") d.open = true; });
+  scheduleDraw(); scheduleLoss(); if (tab === "play") pvBuild("keep");
+}
+function crBadge(tab, n) { const b = document.querySelector(`#crTabs [data-tab="${tab}"]`); if (!b) return; if (n > 0) b.dataset.alert = n > 99 ? "99+" : String(n); else delete b.dataset.alert; }
+
+// ---------------- remote viewing (v14) ----------------
+// Gateway: every frame/event from the BLE capsule session is sealed with AES-256-GCM (key from the room
+// passphrase via PBKDF2-SHA256, 310k iterations, salt = room) and broadcast on a private, sign-in-protected
+// Supabase Realtime channel. Viewers decrypt and render in memory only (nothing stored on the viewer).
+// Encryption is defence-in-depth: the relay still transmits ePHI, so a BAA with the relay provider is required.
+const RM = { role: "off", t: null, key: null, aad: null, room: "", user: "", sent: 0, recv: 0, bad: 0, sendErr: 0, n: 0,
+  viewers: new Map(), lastHb: 0, gw: null, timers: [], seen: new Set(), id: Math.random().toString(36).slice(2, 10), client: null, clientUrl: "", firstHello: true };
+const SB_CDN = ["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"];
+function loadScript(src) { return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.async = true; el.crossOrigin = "anonymous";
+  el.onload = res; el.onerror = () => { el.remove(); rej(new Error("load failed")); }; document.head.appendChild(el); }); }
+async function loadSupabase() {
+  if (window.supabase && window.supabase.createClient) return window.supabase;
+  for (const u of SB_CDN) { try { await loadScript(u); if (window.supabase && window.supabase.createClient) return window.supabase; } catch { /* try next */ } }
+  throw new Error("Could not load the Supabase library. Check the internet connection.");
+}
+const b64e = u8 => { let x = ""; for (let i = 0; i < u8.length; i += 0x8000) x += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(x); };
+const b64d = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+async function rmDeriveKey(pass, room) {
+  if (!window.crypto || !crypto.subtle) throw new Error("Encryption needs HTTPS (GitHub Pages is fine) or localhost.");
+  const enc = new TextEncoder(), base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode("peek1-remote-v1:" + room), iterations: 310000 },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function rmSeal(obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: RM.aad }, RM.key, new TextEncoder().encode(JSON.stringify(obj))));
+  return { v: 1, iv: b64e(iv), ct: b64e(ct) };
+}
+async function rmOpen(m) {
+  if (!m || m.v !== 1 || typeof m.iv !== "string" || typeof m.ct !== "string") throw new Error("not a PEEK1 message");
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64d(m.iv), additionalData: RM.aad }, RM.key, b64d(m.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function localTransport(room, onMsg) {
+  const bc = new BroadcastChannel("peek1-remote:" + room); bc.onmessage = e => onMsg(e.data);
+  return { label: "Local test (this browser)", send: async m => bc.postMessage(m), close: async () => bc.close() };
+}
+async function supabaseTransport(cfg, onMsg) {
+  const sb = await loadSupabase();
+  if (!RM.client || RM.clientUrl !== cfg.url) { RM.client = sb.createClient(cfg.url, cfg.key); RM.clientUrl = cfg.url; }
+  const client = RM.client;
+  let { data: { session } } = await client.auth.getSession();
+  if (!session) {
+    if (!cfg.email || !cfg.password) throw new Error("Enter your email and password to sign in.");
+    const { data, error } = await client.auth.signInWithPassword({ email: cfg.email, password: cfg.password });
+    if (error) throw new Error(`Sign-in failed: ${error.message}`);
+    session = data.session;
+  }
+  RM.user = (session.user && session.user.email) || "";
+  await client.realtime.setAuth(session.access_token);
+  const chan = client.channel("peek1:" + cfg.room, { config: { private: true, broadcast: { self: false, ack: false } } });
+  chan.on("broadcast", { event: "m" }, msg => onMsg(msg.payload));
+  await new Promise((res, rej) => {
+    const to = setTimeout(() => rej(new Error("Joining the room timed out.")), 15000);
+    chan.subscribe((status, err) => {
+      if (status === "SUBSCRIBED") { clearTimeout(to); res(); }
+      else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        clearTimeout(to);
+        rej(new Error(status === "CHANNEL_ERROR" ? `Not allowed to join this room. Check the Realtime policies and your account${err && err.message ? ` (${err.message})` : ""}.` : `Room connection ${status.toLowerCase().replace("_", " ")}.`));
+      }
+    });
+  });
+  return { label: "Supabase Realtime, private room", send: m => chan.send({ type: "broadcast", event: "m", payload: m }), close: async () => { await client.removeChannel(chan); } };
+}
+async function rmSend(obj) {
+  if (!RM.t || !RM.key) return;
+  try { await RM.t.send(await rmSeal(obj)); RM.sent++; } catch (e) { RM.sendErr++; if (RM.sendErr === 1) note("warn", `Remote: send failed (${e.message || e})`); }
+}
+function rmSendFrame(rec) { if (RM.role === "gateway") rmSend({ k: "f", ts: rec.ts, n: ++RM.n, b: b64e(rec.frame) }); }
+function rmSendEvent(ev) { if (RM.role === "gateway" && ev.type !== "note") rmSend({ k: "e", ev }); }
+async function rmSendHistory() {
+  const recent = S.imgs.slice(-30);
+  for (const img of recent) await rmSend({ k: "f", ts: img.ts, n: "h" + img.ts, b: b64e(img.frame), hist: true });
+}
+async function rmOnMsg(raw) {
+  let m;
+  try { m = await rmOpen(raw); } catch { RM.bad++; if (RM.bad === 1) note("warn", "Remote: a message could not be decrypted. Check that the room passphrase matches."); rmRender(); return; }
+  RM.recv++;
+  if (RM.role === "viewer") {
+    if (m.k === "hb") { RM.lastHb = Date.now(); RM.gw = m; }
+    else if (m.k === "f" && typeof m.b === "string") {
+      const key = `${m.ts}:${m.n}`, hk = `${m.ts}:h${m.ts}`;
+      if (RM.seen.has(key) || RM.seen.has(`ts:${m.ts}`)) return;
+      RM.seen.add(key); RM.seen.add(hk); RM.seen.add(`ts:${m.ts}`);
+      ingestFrame({ ts: m.ts, frame: b64d(m.b) }, true);
+      $("storedCount").textContent = S.total; renderStats(); scheduleDraw();
+    } else if (m.k === "e" && m.ev && typeof m.ev === "object") { ingestEvent(m.ev, true); renderStats(); scheduleDraw(); }
+  } else if (RM.role === "gateway" && m.k === "hello" && typeof m.id === "string") {
+    const isNew = !RM.viewers.has(m.id);
+    RM.viewers.set(m.id, { t: Date.now(), who: String(m.who || "").slice(0, 80) });
+    if (isNew) { note("info", `Remote viewer joined${m.who ? `: ${String(m.who).slice(0, 80)}` : ""}`); }
+    if (m.first) rmSendHistory();
+  }
+  rmRender();
+}
+function rmCfg() {
+  return { role: $("rmRole").value, backend: $("rmBackend").value, url: $("rmUrl").value.trim().replace(/\/+$/, ""), key: $("rmKey").value.trim(),
+    email: $("rmEmail").value.trim(), password: $("rmPass").value, room: $("rmRoom").value.trim(), secret: $("rmSecret").value };
+}
+function rmValidate(c) {
+  if (c.role === "off") return "Choose Gateway or Viewer.";
+  if (!/^[A-Za-z0-9._-]{3,48}$/.test(c.room)) return "Room: 3–48 characters, letters, digits, dot, dash or underscore.";
+  if (c.secret.length < 12) return "Room passphrase: at least 12 characters.";
+  if (c.backend === "supabase") {
+    if (!/^https:\/\/[^\s/]+$/.test(c.url)) return "Project URL must start with https://";
+    if (!c.key) return "Enter the publishable key.";
+    if (c.role === "gateway" && !$("rmBaa").checked) return "Confirm the BAA and HIPAA add-on before sharing patient data.";
+  }
+  if (c.role === "viewer" && device && device.gatt && device.gatt.connected) return "Disconnect the capsule here before watching remotely.";
+  if (c.role === "viewer" && OFF.active) return "Switch the source to Live BLE before watching remotely.";
+  return null;
+}
+async function rmStart() {
+  const c = rmCfg(), err = rmValidate(c);
+  if (err) { rmSetState("err", err); toast(err); return; }
+  $("rmStart").disabled = true; rmSetState("", "Connecting…");
+  try {
+    RM.key = await rmDeriveKey(c.secret, c.room); RM.aad = new TextEncoder().encode("peek1:" + c.room); RM.room = c.room;
+    RM.sent = RM.recv = RM.bad = RM.sendErr = 0; RM.viewers.clear(); RM.seen.clear(); RM.lastHb = 0; RM.gw = null; RM.firstHello = true;
+    RM.t = c.backend === "local" ? localTransport(c.room, rmOnMsg) : await supabaseTransport(c, rmOnMsg);
+    if (c.backend === "local") RM.user = "local";
+    RM.role = c.role;
+    $("rmSecret").value = ""; $("rmPass").value = "";                       // never keep secrets in the form
+    SET.rmBackend = c.backend; SET.rmUrl = c.url; SET.rmKey = c.key; SET.rmRoom = c.room; if ($("rmBaa").checked) SET.rmBaaUrl = c.url; saveSettings();
+    if (RM.role === "viewer") {
+      resetView(); renderGallery(); renderTimeline(); pvBuild("end");
+      R.connectedSince = Date.now(); setPill("connecting", `Remote · waiting for gateway in ${c.room}`);
+      const hello = () => { rmSend({ k: "hello", id: RM.id, who: RM.user, first: RM.firstHello }); RM.firstHello = false; };
+      hello(); RM.timers.push(setInterval(hello, 20000));
+      RM.timers.push(setInterval(rmViewerWatch, 2000));
+    } else {
+      const hb = () => rmSend({ k: "hb", ts: Date.now(), ble: !!R.connectedSince, total: S.total });
+      hb(); RM.timers.push(setInterval(hb, 5000));
+      RM.timers.push(setInterval(() => { const now = Date.now(); for (const [k, v] of RM.viewers) if (now - v.t > 60000) RM.viewers.delete(k); rmRender(); }, 5000));
+    }
+    note("ok", `Remote ${RM.role} started: room ${c.room} via ${RM.t.label}${RM.user ? `, signed in as ${RM.user}` : ""}`);
+    rmSetState("on", RM.role === "gateway" ? "Sharing" : "Watching");
+  } catch (e) {
+    RM.role = "off"; RM.key = null; RM.t = null;
+    rmSetState("err", e.message || String(e)); toast(e.message || String(e));
+  } finally { $("rmStart").disabled = false; rmRender(); }
+}
+async function rmStop(reason) {
+  for (const t of RM.timers) clearInterval(t); RM.timers = [];
+  const was = RM.role; RM.role = "off";
+  try { if (RM.t) await RM.t.close(); } catch { /* already closed */ }
+  RM.t = null; RM.key = null; RM.aad = null;
+  if (was === "viewer") { R.connectedSince = null; setPill("", "Remote viewing stopped"); }
+  if (was !== "off") note("info", `Remote ${was} stopped${reason ? ` (${reason})` : ""}`);
+  rmSetState("", "Off"); rmRender(); renderStats();
+}
+function rmViewerWatch() {
+  if (RM.role !== "viewer") return;
+  const age = RM.lastHb ? Date.now() - RM.lastHb : null;
+  if (age != null && age < 15000) setPill(RM.gw && RM.gw.ble ? "connected" : "retrying", RM.gw && RM.gw.ble ? `Remote · ${RM.room} · capsule link up` : `Remote · ${RM.room} · gateway up, capsule link down`);
+  else setPill("retrying", age == null ? `Remote · waiting for gateway in ${RM.room}` : `Remote · gateway silent for ${fmtAge(age)}`);
+  rmRender(); renderStats();
+}
+function rmSetState(cls, text) { const el = $("rmState"); el.className = "act muted " + (cls || ""); el.textContent = text; }
+function rmRender() {
+  const on = RM.role !== "off";
+  $("rmStart").hidden = on; $("rmStop").hidden = !on;
+  for (const id of ["rmRole", "rmBackend", "rmUrl", "rmKey", "rmEmail", "rmPass", "rmRoom", "rmSecret", "rmBaa"]) $(id).disabled = on;
+  const sbOn = $("rmBackend").value === "supabase";
+  q("#remoteCard .sb").forEach(el => { el.hidden = !sbOn; });
+  $("rmBaaRow").hidden = !(sbOn && $("rmRole").value !== "viewer");
+  const cell = (k, v, sub) => `<div class="la-cell"><span>${esc(k)}</span><b>${esc(v)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div>`;
+  if (!on) { $("rmStats").innerHTML = ""; crBadge("remote", 0); return; }
+  const now = Date.now(), live = [...RM.viewers.values()].filter(v => now - v.t < 60000);
+  $("rmStats").innerHTML = RM.role === "gateway"
+    ? cell("Viewers watching", String(live.length), live.map(v => v.who).filter(Boolean).slice(0, 3).join(", ")) + cell("Frames sent", RM.sent.toLocaleString(), RM.sendErr ? `${RM.sendErr} send errors` : RM.t ? RM.t.label : "") +
+      cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), "could not be decrypted")
+    : cell("Gateway", RM.lastHb && now - RM.lastHb < 15000 ? "Online" : "Not heard", RM.lastHb ? `last heartbeat ${fmtAge(now - RM.lastHb)} ago` : "waiting") + cell("Frames received", S.total.toLocaleString(), "kept in memory only") +
+      cell("Room", RM.room, RM.user ? `signed in as ${RM.user}` : "") + cell("Rejected messages", String(RM.bad), RM.bad ? "wrong passphrase?" : "none");
+  crBadge("remote", RM.bad ? RM.bad : 0);
+}
+function rmInit() {
+  $("rmBackend").value = SET.rmBackend || "supabase"; $("rmUrl").value = SET.rmUrl || ""; $("rmKey").value = SET.rmKey || ""; $("rmRoom").value = SET.rmRoom || "";
+  $("rmBaa").checked = !!SET.rmUrl && SET.rmBaaUrl === SET.rmUrl;
+  $("rmBackend").addEventListener("change", rmRender); $("rmRole").addEventListener("change", rmRender);
+  $("rmUrl").addEventListener("change", () => { $("rmBaa").checked = SET.rmBaaUrl && SET.rmBaaUrl === $("rmUrl").value.trim().replace(/\/+$/, ""); });
+  $("rmStart").addEventListener("click", rmStart); $("rmStop").addEventListener("click", () => rmStop("by user"));
+  $("rmSignOut").addEventListener("click", async () => { if (RM.role !== "off") await rmStop("signed out"); if (RM.client) await RM.client.auth.signOut(); RM.user = ""; toast("Signed out"); });
+  window.addEventListener("beforeunload", () => { if (RM.t) RM.t.close(); });
+  rmRender();
+}
+
 $("btnConn").addEventListener("click", onConnClicked);
 $("btnExport").addEventListener("click", exportZip);
 $("btnClear").addEventListener("click", clearSession);
 $("laCsv").addEventListener("click", exportLossCsv);
+q("#crTabs button").forEach(b => b.addEventListener("click", () => crSelect(b.dataset.tab)));
+$("crTabs").addEventListener("keydown", e => { const bs = q("#crTabs button"), i = bs.findIndex(b => b.getAttribute("aria-selected") === "true");
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = bs[(i + (e.key === "ArrowRight" ? 1 : bs.length - 1)) % bs.length]; crSelect(n.dataset.tab); n.focus(); e.preventDefault(); } });
+crSelect(SET.crTab || "trends"); rmInit();
 $("rpPrint").addEventListener("click", printReport);
 $("rpDl").addEventListener("click", downloadReport);
 // ---------- E. last-resort error guard (v12): never fail silently ----------
