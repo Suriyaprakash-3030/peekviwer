@@ -399,7 +399,7 @@ footer { margin-top: 18px; font-size: .76rem; color: var(--muted); text-align: c
           <input id="setBatt" type="number" step="0.01" min="0" max="6" placeholder="off" inputmode="decimal">
           <label for="setSeq">Sequence numbering<small>How the firmware increments seq. Used for gap detection.</small></label>
           <select id="setSeq"><option value="frame">+1 per frame</option><option value="cam">+1 per camera</option><option value="off">Don't check</option></select>
-          <label for="setRepair">Auto-repair JPEG header<small>Fixes the known firmware bit-slip. Raw .hex stays unmodified. Turn off to see raw images.</small></label>
+          <label for="setRepair">Auto-repair JPEG header<small>Fixes the known firmware bit-slips (byte 31 slip and byte 26–27 slip; the latter only when the image data verifies). Raw .hex stays unmodified. Turn off to see raw images.</small></label>
           <select id="setRepair"><option value="on">On</option><option value="off">Off</option></select>
           <label for="setOffInt">Offline time per frame (s)<small>Frames carry no timestamp; offline times are estimated as seq × this value.</small></label>
           <input id="setOffInt" type="number" step="0.1" min="0.1" placeholder="2" inputmode="decimal">
@@ -527,17 +527,83 @@ function refHeaderFix(j) {
   }
   const out = j.slice(); out.set(REF_HDR, 0); return { jpeg: out, bits };
 }
-// Returns {jpeg, status, fix}: status "ok" | "repaired" | "broken" | "none"; fix = "slip" | "slip+ref" | "ref"
+// Stage 3 (v9): early bit-slip at frame byte 26–27 (≈12% of frames in cr95082). The slips cancel out
+// inside the 623-byte JPEG header, so the scan data after it is byte-aligned and intact. Repair =
+// overwrite frame bytes 27..649 with REF_HDR. Because a transplanted header is always "valid", the
+// result is accepted ONLY if the scan Huffman-decodes to exactly the expected MCU count and ends at
+// EOI (scanDecodesFully). Misaligned scan data fails this check (tested: 1500/1500 rejected).
+const JPEG_OFF = 27;
+const REF_SCAN = (() => {                // Huffman tables + geometry parsed once from REF_HDR
+  const h = REF_HDR, dht = {}; let p = 2, sof = null, sos = null;
+  while (p + 4 <= h.length) {
+    const m = h[p + 1], ln = (h[p + 2] << 8) | h[p + 3], s = p + 4, e = p + 2 + ln;
+    if (m === 0xC4) {
+      let q = s;
+      while (q < e) {
+        const tc = h[q], cnt = h.subarray(q + 1, q + 17); let n = 0; for (const c of cnt) n += c;
+        const maxcode = new Int32Array(18).fill(-1), valptr = new Int32Array(17), mincode = new Int32Array(17);
+        let code = 0, k = 0;
+        for (let L = 1; L <= 16; L++) { valptr[L] = k; mincode[L] = code; code += cnt[L - 1]; k += cnt[L - 1]; maxcode[L] = cnt[L - 1] ? code - 1 : -1; code <<= 1; }
+        dht[tc] = { maxcode, valptr, mincode, vals: h.slice(q + 17, q + 17 + n) }; q += 17 + n;
+      }
+    } else if (m === 0xC0) sof = h.subarray(s, e);
+    else if (m === 0xDA) { sos = h.subarray(s, e); break; }
+    p = e;
+  }
+  const H = (sof[1] << 8) | sof[2], W = (sof[3] << 8) | sof[4], comps = [];
+  for (let i = 0; i < sof[5]; i++) comps.push({ id: sof[6 + 3 * i], h: sof[7 + 3 * i] >> 4, v: sof[7 + 3 * i] & 15 });
+  for (let i = 0; i < sos[0]; i++) { const c = comps.find(x => x.id === sos[1 + 2 * i]); c.dc = dht[sos[2 + 2 * i] >> 4]; c.ac = dht[0x10 | (sos[2 + 2 * i] & 15)]; }
+  const hm = Math.max(...comps.map(c => c.h)), vm = Math.max(...comps.map(c => c.v));
+  return { comps, nmcu: Math.ceil(W / (8 * hm)) * Math.ceil(H / (8 * vm)), hdrLen: h.length };
+})();
+function scanDecodesFully(j) {           // j = full JPEG starting with REF_HDR; true if scan decodes exactly
+  const T = REF_SCAN, n = j.length; let i = T.hdrLen, end = -1;
+  const bs = new Uint8Array(n); let bl = 0;            // unstuff FF00, stop at EOI, reject any other marker
+  while (i < n) {
+    const b = j[i];
+    if (b === 0xFF) { const nb = i + 1 < n ? j[i + 1] : 0;
+      if (nb === 0x00) { bs[bl++] = 0xFF; i += 2; continue; }
+      if (nb === 0xD9) { end = i; break; }
+      return false; }
+    bs[bl++] = b; i++;
+  }
+  if (end < 0) return false;
+  const nbits = bl * 8; let pos = 0;
+  const bit = () => (pos < nbits ? (bs[pos >> 3] >> (7 - (pos++ & 7))) & 1 : -1);
+  const dec = t => { let c = 0; for (let L = 1; L <= 16; L++) { const b = bit(); if (b < 0) return -1;
+    c = (c << 1) | b; if (t.maxcode[L] >= 0 && c <= t.maxcode[L] && c >= t.mincode[L]) return t.vals[t.valptr[L] + c - t.mincode[L]]; } return -2; };
+  for (let m = 0; m < T.nmcu; m++) for (const c of T.comps) for (let b = 0; b < c.h * c.v; b++) {
+    let s = dec(c.dc); if (s < 0) return false; pos += s;
+    for (let k = 1; k < 64;) {
+      const rs = dec(c.ac); if (rs < 0) return false;
+      const r = rs >> 4; s = rs & 15;
+      if (s === 0) { if (r === 15) { k += 16; continue; } break; }
+      k += r + 1; pos += s;
+    }
+    if (pos > nbits) return false;
+  }
+  return nbits - pos <= 16;               // only fill bits may remain before EOI
+}
+function repairHeaderTransplant(frame) {
+  if (frame.length < JPEG_OFF + REF_HDR.length + 4) return null;
+  const f = frame.slice(); f.set(REF_HDR, JPEG_OFF);
+  const eoi = findSeq(f, 0xFF, 0xD9, true);
+  if (eoi < JPEG_OFF + REF_HDR.length) return null;
+  const j = f.slice(JPEG_OFF, eoi + 2);
+  return scanDecodesFully(j) ? j : null;
+}
+// Returns {jpeg, status, fix}: status "ok" | "repaired" | "broken" | "none"; fix = "slip" | "slip+ref" | "ref" | "hdr"
 function getJpeg(frame, allowRepair = true) {
   const raw = extractJpeg(frame);
-  if (!raw) return { jpeg: null, status: "none" };
-  if (jpegHeaderValid(raw)) return { jpeg: raw, status: "ok" };
+  if (raw && jpegHeaderValid(raw)) return { jpeg: raw, status: "ok" };
   if (allowRepair) {
     const fixed = repairHeaderSlip(frame), j2 = fixed && extractJpeg(fixed);
     if (j2 && jpegHeaderValid(j2)) return { jpeg: j2, status: "repaired", fix: "slip" };
     const r2 = refHeaderFix(j2); if (r2 && jpegHeaderValid(r2.jpeg)) return { jpeg: r2.jpeg, status: "repaired", fix: "slip+ref", bits: r2.bits };
     const r1 = refHeaderFix(raw); if (r1 && jpegHeaderValid(r1.jpeg)) return { jpeg: r1.jpeg, status: "repaired", fix: "ref", bits: r1.bits };
+    const j3 = repairHeaderTransplant(frame); if (j3) return { jpeg: j3, status: "repaired", fix: "hdr" };
   }
+  if (!raw) return { jpeg: null, status: "none" };
   return { jpeg: raw, status: "broken" };
 }
 
@@ -777,7 +843,9 @@ function ingestFrame(rec, live) {
   if (sysd) { S.batt.push([t, sysd.voltageV]); if (live) checkBattery(sysd.voltageV, t); }
 
   const { jpeg, status, fix, bits } = getJpeg(frame, SET.repair);
-  if (fix && fix !== "slip") { S.refFixed = (S.refFixed || 0) + 1;
+  if (fix === "hdr") { S.hdrFixed = (S.hdrFixed || 0) + 1;
+    if (live && !R.hdrNoted) { R.hdrNoted = true; note("warn", `Early header bit-slip (byte 26–27) repaired by header transplant, scan data verified (seq ${seq}). Further cases are counted, not logged.`, t); } }
+  else if (fix && fix !== "slip") { S.refFixed = (S.refFixed || 0) + 1;
     if (live) note("warn", `Seq ${seq} (${label}): ${bits} extra header bit error(s) beyond the known slip, header restored from reference`, t); }
   if (status === "repaired") {
     S.repaired++;
@@ -1524,15 +1592,44 @@ function isFrameAt(u, i) {
   if (len < 32 || len > 2_000_000 || (cam !== CAM_FRONT && cam !== CAM_BACK) || u[i + 27] !== 0xFF || u[i + 28] !== 0xD8) return 0;
   return len;
 }
+// v9: frames whose header is bit-slipped at byte 26–27 fail isFrameAt (no FF D8 at 27, sometimes a
+// corrupted camera byte) but bytes 0–25 (length, seq) are intact. Accept such a frame only if its
+// declared length lands exactly on the next frame start (or end of file / erased padding).
+function nextIsBoundary(u, j) {
+  let k = j; while (k < u.length && k - j < 16 && (u[k] === 0x00 || u[k] === 0xFF)) k++;
+  if (k >= u.length) return true;
+  if (k - j >= 16) { for (let m = k; m < Math.min(u.length, k + 4096); m++) if (u[m] !== 0x00 && u[m] !== 0xFF) return false; return true; }
+  return u[k] === 0xC0 && u[k + 1] === 0x5A;
+}
+function headerLooksLikeFrame(u, i) {
+  if (i + 29 > u.length || u[i] !== 0xC0 || u[i + 1] !== 0x5A || u[i + 2] !== 0x01) return 0;
+  const len = u32le(u, i + 3);
+  return len >= 650 && len <= 2_000_000 ? len : 0;
+}
 function scanFrames(u, name) {
   const frames = [], issues = [];
-  let i = 0, junkStart = -1, junkBytes = 0;
+  let i = 0, junkStart = -1, junkBytes = 0, slipped = 0, badCam = 0;
   const flushJunk = () => { if (junkBytes > 0) issues.push({ off: junkStart, kind: "junk", text: `${junkBytes.toLocaleString()} bytes of unrecognised data skipped at offset ${junkStart} in ${name}` }); junkStart = -1; junkBytes = 0; };
   while (i < u.length) {
     const len = isFrameAt(u, i);
     if (len) {
       if (i + len > u.length) { flushJunk(); issues.push({ off: i, kind: "trunc", text: `Truncated frame at offset ${i} in ${name}: ${u.length - i} of ${len} bytes` }); break; }
       flushJunk(); frames.push({ off: i, bytes: u.slice(i, i + len) }); i += len; continue;
+    }
+    const sl = headerLooksLikeFrame(u, i);
+    if (sl) {
+      const seq = (u[i + 24] << 8) | u[i + 25], cam = u[i + 7];
+      if (i + sl <= u.length && nextIsBoundary(u, i + sl)) {
+        flushJunk(); frames.push({ off: i, bytes: u.slice(i, i + sl), slipped: true }); slipped++;
+        if (cam !== CAM_FRONT && cam !== CAM_BACK) { badCam++; issues.push({ off: i, kind: "cam", text: `Frame seq ${seq} at offset ${i} in ${name}: camera byte corrupted (0x${cam.toString(16)}); seq kept, image not shown because Front/Back is unknown` }); }
+        i += sl; continue;
+      }
+      // header present but the next frame starts inside it: overwritten / truncated frame
+      let nx = i + 3; while (nx < Math.min(u.length, i + sl) && !(isFrameAt(u, nx) || (headerLooksLikeFrame(u, nx) && nextIsBoundary(u, nx + headerLooksLikeFrame(u, nx))))) nx++;
+      if (nx < i + sl && nx < u.length) {
+        flushJunk(); issues.push({ off: i, kind: "trunc", text: `Damaged frame seq ${seq} at offset ${i} in ${name}: header claims ${sl} B but next frame starts after ${nx - i} B (overwritten or truncated)` });
+        i = nx; continue;
+      }
     }
     // BLE INFO header (C0 5A + LE length + 1 byte) directly followed by a frame of that length
     if (u[i] === 0xC0 && u[i + 1] === 0x5A && i + 7 < u.length && isFrameAt(u, i + 7) && u32le(u, i + 2) === isFrameAt(u, i + 7)) { i += 7; continue; }
@@ -1541,6 +1638,7 @@ function scanFrames(u, name) {
     i++;
   }
   flushJunk();
+  if (slipped) issues.push({ off: 0, kind: "slip", text: `${slipped.toLocaleString()} frame(s) in ${name} had a bit-slipped header at byte 26–27 and were recovered by length${badCam ? ` (${badCam} with corrupted camera byte)` : ""}; images are repaired only if the scan data verifies` });
   return { frames, issues };
 }
 function hexTextToBytes(txt) {
