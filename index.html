@@ -109,7 +109,7 @@ button:disabled { opacity: .45; cursor: default; }
 #shotF .imgbox { box-shadow: inset 0 0 0 1px rgba(92,203,208,.35); } #shotB .imgbox { box-shadow: inset 0 0 0 1px rgba(238,155,190,.35); }
 .imgbox img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
 .imgbox canvas { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; display: block; }
-.imgbox[data-mode="native"] img { width: auto; height: auto; max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.imgbox[data-mode="native"] img { width: auto; height: auto; max-width: 100%; max-height: 100%; }
 .imgbox em { color: var(--bezelmuted); font-size: .86rem; font-style: normal; text-align: center; padding: 8px; }
 .imgbox .tag { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.65); color: #fff; font-size: .72rem;
   padding: 2px 7px; border-radius: 4px; font-family: var(--mono); }
@@ -931,8 +931,9 @@ const $ = id => document.getElementById(id);
 const q = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------------- settings ----------------
-const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream", crTab: "trends", imgMode: "fit" };
+const SET = { batt: 3.3, radioWeak: -100, seq: "frame", stale: null, theme: "auto", win: 1800000, repair: true, offInt: 2, framing: "stream", crTab: "trends", imgMode: "enhanced" };
 try { Object.assign(SET, JSON.parse(localStorage.getItem("peek1_settings") || "{}")); } catch { /* defaults */ }
+if (SET.imgV !== 2) { SET.imgMode = "enhanced"; SET.imgV = 2; }
 for (const k of ["rmBackend", "rmUrl", "rmKey", "rmRoom", "rmBaaUrl"]) delete SET[k];   // v19: remote viewing removed
 if (SET.crTab === "remote") SET.crTab = "setup";
 function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stringify(SET)); } catch { /* optional */ } }
@@ -1193,7 +1194,7 @@ function enhance(src, k = 3) {
   g.drawImage(src, 0, 0, c.width, c.height);
   const w = c.width, h = c.height, s = g.getImageData(0, 0, w, h), d = g.createImageData(w, h);
   d.data.set(s.data);
-  const kern = [0, -.5, 0, -.5, 3, -.5, 0, -.5, 0];
+  const kern = [0, -.25, 0, -.25, 2, -.25, 0, -.25, 0];
   for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) for (let ch = 0; ch < 3; ch++) {
     let v = 0, n = 0;
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) v += s.data[((y + j) * w + x + i) * 4 + ch] * kern[n++];
@@ -1208,8 +1209,10 @@ function fitNode(box, el) {
   el.style.width = el.style.height = "";
   if (mode === "enhanced") { const c = enhance(el); c.onclick = el.onclick; c.setAttribute("role", "img"); c.setAttribute("aria-label", el.alt); return c; }
   if (mode === "native") {
-    const k = Math.max(1, Math.floor(Math.min(box.clientWidth / el.naturalWidth, box.clientHeight / el.naturalHeight)));
+    const fit = Math.min(box.clientWidth / el.naturalWidth, box.clientHeight / el.naturalHeight);
+    const k = Math.max(1, Math.floor(fit * 4) / 4);
     el.style.width = el.naturalWidth * k + "px"; el.style.height = el.naturalHeight * k + "px";
+    el.style.imageRendering = Number.isInteger(k) ? "pixelated" : "auto";
   }
   return el;
 }
