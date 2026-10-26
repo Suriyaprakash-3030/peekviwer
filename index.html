@@ -405,6 +405,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
     </div>
     <div class="srcmode" role="group" aria-label="Data source"><button data-src="live" aria-pressed="true">Live BLE</button><button data-src="file">Offline file</button></div>
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Not connected</span></div>
+    <div class="pill" id="battPill" title="DR battery voltage (BLE 6e400004, u16 little-endian mV)"><span id="battText">DR battery: –</span></div>
     <div class="spacer"></div>
     <button class="icon" id="btnTheme" aria-label="Theme: auto" title="Theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button>
     <button id="btnImg" title="Image size: Fit / Native / Enhanced">Image: Fit</button>
@@ -627,7 +628,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v20 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v21 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -643,7 +644,8 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
 const DEVICE_NAME    = "PEEK1";
 const SERVICE_UUID   = "6e400001-b5a3-f393-e0a9-e50e24dcca3e";
 const CHAR_TX_UUID   = "6e400003-b5a3-f393-e0a9-e50e24dcca3e"; // notify: image chunks
-const CHAR_INFO_UUID = "6e400004-b5a3-f393-e0a9-e50e24dcca3e"; // notify: 7-byte frame header
+const CHAR_INFO_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca3e"; // notify: 7-byte frame header (optional, stream mode ignores it)
+const CHAR_BATT_UUID = "6e400004-b5a3-f393-e0a9-e50e24dcca3e"; // read + notify: DR battery, u16 little-endian mV
 const CAM_FRONT = 0x11, CAM_BACK = 0x22;
 
 function crc16ccitt(data) {            // poly 0x1021, init 0xFFFF — same as STM32/nRF
@@ -1585,7 +1587,7 @@ ${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v20 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v21 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1606,7 +1608,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v20, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v21, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2022,6 +2024,24 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", schedule
 // ---------------- Web Bluetooth ----------------
 function toBytes(dv) { return new Uint8Array(dv.buffer.slice(dv.byteOffset, dv.byteOffset + dv.byteLength)); }
 function onInfoEvt(e) { assembler.onInfo(toBytes(e.target.value)); }        // named handlers: never double-registered
+// ---- DR battery (6e400004): 2 bytes, u16 little-endian, mV. Notified once when the first image of a DR boot arrives
+// ("pill ready"), once after subscribe if the pill was already seen, then about every 60 s.
+const BATT = { mv: 0, ts: 0, live: false };
+function battShow() {
+  const el = $("battText"); if (!el) return;
+  if (!BATT.ts) { el.textContent = "DR battery: –"; return; }
+  const t = new Date(BATT.ts).toLocaleTimeString();
+  el.textContent = BATT.mv ? `DR battery: ${(BATT.mv / 1000).toFixed(2)} V · ${t}${BATT.live ? "" : " (last)"}` : `DR battery: not measured yet · ${t}`;
+}
+function battStale() { BATT.live = false; battShow(); }
+function onBattValue(d, how) {
+  if (d.length >= 7 && d[0] === 0xC0 && d[1] === 0x5A) { assembler.onInfo(d); return; }   // old firmware: 6e400004 was the frame header
+  if (d.length !== 2) { log(`[batt] unexpected length ${d.length}: ${Array.from(d, b => b.toString(16).padStart(2, "0")).join("")}`); return; }
+  BATT.mv = d[0] | (d[1] << 8); BATT.ts = Date.now(); BATT.live = true;
+  log(`[batt] ${BATT.mv} mV (${how}) raw=${Array.from(d, b => b.toString(16).padStart(2, "0")).join(" ")}`);
+  battShow();
+}
+function onBattEvt(e) { onBattValue(toBytes(e.target.value), "notify"); }
 function onTxEvt(e) { const d = toBytes(e.target.value); if (d.length > S.maxChunk) S.maxChunk = d.length; assembler.onChunk(d); }
 function onRssiEvt(e) { const d = toBytes(e.target.value); if (!d.length) return;
   onLiveEvent({ ts: Date.now(), type: "rssi", src: "link", dbm: d[0] > 127 ? d[0] - 256 : d[0] }); }
@@ -2040,7 +2060,7 @@ async function startAdvWatch() {
   catch (e) { log(`[ble] watchAdvertisements unavailable: ${e.message}`); advAbort = null; }
 }
 function stopAdvWatch() { if (advAbort) { advAbort.abort(); advAbort = null; } }
-function markDisconnected() { if (R.connectedSince) { R.connectedMs += Date.now() - R.connectedSince; R.connectedSince = null; } }
+function markDisconnected() { battStale(); if (R.connectedSince) { R.connectedMs += Date.now() - R.connectedSince; R.connectedSince = null; } }
 
 async function connectGatt() {
   connecting = true;
@@ -2049,11 +2069,16 @@ async function connectGatt() {
     const server = await device.gatt.connect();
     stopAdvWatch();
     const svc = await server.getPrimaryService(SERVICE_UUID);
-    const info = await svc.getCharacteristic(CHAR_INFO_UUID);
+    try { const info = await svc.getCharacteristic(CHAR_INFO_UUID);
+      info.addEventListener("characteristicvaluechanged", onInfoEvt); await info.startNotifications(); }
+    catch (e) { log(`[ble] image info characteristic (6e400002) not available: ${e.message}`); }
     const tx = await svc.getCharacteristic(CHAR_TX_UUID);
-    info.addEventListener("characteristicvaluechanged", onInfoEvt);
     tx.addEventListener("characteristicvaluechanged", onTxEvt);
-    await info.startNotifications(); await tx.startNotifications();
+    await tx.startNotifications();
+    try { const bc = await svc.getCharacteristic(CHAR_BATT_UUID);
+      bc.addEventListener("characteristicvaluechanged", onBattEvt); await bc.startNotifications();
+      try { onBattValue(toBytes(await bc.readValue()), "read"); } catch (e) { log(`[batt] read failed: ${e.message}`); }
+    } catch (e) { log(`[ble] battery characteristic (6e400004) not available: ${e.message}`); }
     try { const rc = await svc.getCharacteristic(CHAR_RSSI_UUID); rc.addEventListener("characteristicvaluechanged", onRssiEvt);
       await rc.startNotifications(); log("[ble] nRF RSSI characteristic found"); } catch { /* not in firmware yet */ }
     try { const dc = await svc.getCharacteristic(CHAR_DIAG_UUID); dc.addEventListener("characteristicvaluechanged", onDiagEvt);
