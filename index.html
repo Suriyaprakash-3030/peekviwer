@@ -144,7 +144,7 @@ button:disabled { opacity: .45; cursor: default; }
 @keyframes beat { from { opacity: 1; transform: scale(1.4); } to { opacity: 0; transform: scale(1); } }
 
 /* ---------- Instrument rail (KPIs) ---------- */
-.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 14px; background: var(--panel);
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top: 14px; background: var(--panel);
   border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
 .kpi { position: relative; padding: 14px 16px 13px; min-width: 0; }
 .kpi + .kpi { border-left: 1px solid var(--line); }
@@ -449,9 +449,15 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       <div class="sub"><span>Lost BLE <b id="cLost">0</b></span><span title="Missing sequence numbers between received frames">Seq gaps <b id="cGap">0</b></span><span title="Received ÷ (received + seq gaps)">By seq <b id="cBySeq">–</b></span></div>
     </div>
     <div class="card kpi" id="kBatt"><div class="accent"></div>
-      <div class="label">Battery</div>
+      <div class="label" title="Battery of the capsule (pill), read from every image frame">Pill battery</div>
       <div class="value" id="battV">–<small>V</small></div>
       <div class="sub"><span>Min <b id="battMin">–</b></span><span>Max <b id="battMax">–</b></span><span id="battDrain"></span></div>
+    </div>
+    <div class="card kpi" id="kDr"><div class="accent"></div>
+      <div class="label" title="Battery of the data recorder (DR), BLE characteristic 6e400004">DR battery</div>
+      <div class="value" id="drV">–<small>V</small></div>
+      <div class="sub"><span>Min <b id="drMin">–</b></span><span>Max <b id="drMax">–</b></span><span id="drDrain"></span></div>
+      <div class="sub"><span id="drState">No reading yet</span><span id="drLeft"></span></div>
     </div>
     <div class="card kpi" id="kRssi"><div class="accent"></div>
       <div class="label">Radio signal</div>
@@ -568,7 +574,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
           <canvas id="chRate" tabindex="0" aria-label="Frames received per minute" style="height:110px"></canvas>
         </div>
         <div class="chart">
-          <div class="chart-title"><span>Battery voltage</span><span class="readout" id="roBatt"></span></div>
+          <div class="chart-title"><span title="green = pill (capsule), blue = DR (recorder)">Battery voltage · pill (green) · DR (blue)</span><span class="readout" id="roBatt"></span></div>
           <canvas id="chBatt" tabindex="0" aria-label="Battery voltage over time"></canvas>
         </div>
         <div class="chart">
@@ -628,7 +634,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v22 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v23 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -943,13 +949,13 @@ function saveSettings() { try { localStorage.setItem("peek1_settings", JSON.stri
 // ---------------- state ----------------
 function freshState() {
   return { start: null, total: 0, f: 0, b: 0, bad: 0, lost: 0, seqGap: 0,
-    countF: [], countB: [], lostT: [], gapT: [], batt: [], rssiLink: [], rssiAdv: [], rssiRadio: [],
+    countF: [], countB: [], lostT: [], gapT: [], batt: [], drb: [], rssiLink: [], rssiAdv: [], rssiRadio: [],
     frameT: [], frameBytes: [], lastTs: null, lastSeq: null, lastCrc: null, maxChunk: 0,
     lastSeqBy: {}, imgs: [], notes: [], repaired: 0, broken: 0, seqFirst: null, fb: 0, log: [],
     lossDet: [], gapDet: [], orphan: [], overrun: [], link: [], fw: null, pend: new Map(), late: 0, recovered: 0 };
 }
 let S = freshState();
-const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, slipNoted: false };
+const R = { connectedSince: null, connectedMs: 0, reconnects: 0, wasUnexpected: false, battAlarm: false, drWarn: false, drLow: false, slipNoted: false };
 let device = null, manualDisconnect = false, connecting = false, reconnectTimer = null;
 let advAbort = null, lastAdvStore = 0, wakeLock = null, gFilter = "all";
 let lastRestored = {};
@@ -1156,11 +1162,20 @@ function ingestEvent(ev, live) {
     if (live && S.overrun.length <= 3) note("warn", `Frame ended with ${ev.extra} B more than its header announced; it may contain data from the next frame`, ev.ts);
   } else if (ev.type === "link") {
     S.link.push({ t: ev.ts, up: ev.up, manual: !!ev.manual });
+  } else if (ev.type === "drbatt") {
+    if (ev.mv > 0) { S.drb.push([ev.ts, ev.mv / 1000]); if (live) checkDrBattery(ev.mv / 1000, ev.ts); }
   } else if (ev.type === "fwdiag") {
     S.fw = { t: ev.ts, busy: ev.busy, dropped: ev.dropped, captured: ev.captured };
   } else if (ev.type === "rssi") {
     (ev.src === "link" ? S.rssiLink : S.rssiAdv).push([ev.ts, ev.dbm]);
   } else if (ev.type === "note") { addNote(ev, false); if (!live) S.log.push({ ts: ev.ts, text: `[${ev.level}] ${ev.text}` }); }
+}
+const DR_WARN = 3.55, DR_LOW = 3.45;   // DR battery levels: warning, then the recorder should shut down safely
+function checkDrBattery(v, t) {
+  if (v < DR_LOW && !R.drLow) { R.drLow = true; note("bad", `DR battery ${v.toFixed(2)} V is below ${DR_LOW.toFixed(2)} V: the recorder may switch off at any moment`, t); toast(`DR battery critical: ${v.toFixed(2)} V`); }
+  else if (v < DR_WARN && !R.drWarn) { R.drWarn = true; note("warn", `DR battery ${v.toFixed(2)} V is below ${DR_WARN.toFixed(2)} V: charge the recorder soon`, t); toast(`DR battery low: ${v.toFixed(2)} V`); }
+  if (v > DR_WARN + 0.05) { R.drWarn = false; R.drLow = false; }
+  else if (v > DR_LOW + 0.05) R.drLow = false;
 }
 function checkBattery(v, t) {
   const th = SET.batt;
@@ -1340,6 +1355,18 @@ function renderStats() {
     setKpi("kBatt", SET.batt != null ? (last < SET.batt ? "bad" : "ok") : null);
     setBanner("batt", "bad", SET.batt != null && last < SET.batt ? `Battery is ${last.toFixed(2)} V, below your ${SET.batt.toFixed(2)} V alert level.` : null);
   } else { $("battV").innerHTML = "–<small>V</small>"; $("battMin").textContent = "–"; $("battMax").textContent = "–"; $("battDrain").textContent = ""; setKpi("kBatt", null); setBanner("batt"); }
+
+  if (S.drb.length) {
+    const v = S.drb.map(p => p[1]), last = v[v.length - 1];
+    $("drV").innerHTML = `${last.toFixed(2)}<small>V</small>`;
+    $("drMin").textContent = Math.min(...v).toFixed(2); $("drMax").textContent = Math.max(...v).toFixed(2);
+    const d = drainRate(S.drb, now);
+    $("drDrain").textContent = d == null ? "" : `${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(0)} mV/h est.`;
+    $("drLeft").textContent = d != null && d < -5 && last > DR_LOW ? `≈ ${((last - DR_LOW) / (-d / 1000)).toFixed(1)} h to ${DR_LOW.toFixed(2)} V` : "";
+    const age = Math.round((now - S.drb[S.drb.length - 1][0]) / 1000);
+    $("drState").textContent = `${BATT.ready ? "pill ready" : "pill not seen"} · ${age < 90 ? age + " s" : Math.round(age / 60) + " min"} ago${BATT.live ? "" : " (last)"}`;
+    setKpi("kDr", last < DR_LOW ? "bad" : last < DR_WARN ? "warn" : "ok");
+  } else { $("drV").innerHTML = "–<small>V</small>"; $("drMin").textContent = "–"; $("drMax").textContent = "–"; $("drDrain").textContent = ""; $("drLeft").textContent = ""; $("drState").textContent = "No reading yet"; setKpi("kDr", null); }
 
   const a = S.rssiLink[S.rssiLink.length - 1], ad = S.rssiAdv[S.rssiAdv.length - 1], rd = S.rssiRadio[S.rssiRadio.length - 1];
   const bleLast = [a, ad].filter(Boolean).sort((x, y) => y[0] - x[0])[0];
@@ -1582,12 +1609,13 @@ ${sec("Radio, capsule → recorder", [["Samples", d.rr.length ? d.rr.length.toLo
   [`Below ${d.weak} dBm`, d.rr.length ? ((d.rr.filter(v => v < d.weak).length / d.rr.length) * 100).toFixed(1) + "%" : "–"], ["Median before gaps", d.rGap.length ? `${Math.round(median(d.rGap))} dBm` : "–"]])}
 ${sec("BLE, recorder → this PC", OFF.active ? [["Not applicable", "saved file"]] : [["Framing", SET.framing === "info" ? "INFO (legacy)" : "Stream"], ["Cut-off frames", String(d.cut)], ["Recovered by resend", String(S.recovered || 0)],
   ["Unexpected link losses", String(d.downs)], ["Median BLE RSSI", bmed == null ? "–" : `${Math.round(bmed)} dBm`]])}
-${sec("Battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[d.bv.length - 1].toFixed(2)} V` : "–"], ["Minimum", d.bv.length ? `${Math.min(...d.bv).toFixed(2)} V` : "–"],
+${sec("DR battery (recorder)", [["Start / end", S.drb.length ? `${S.drb[0][1].toFixed(2)} / ${S.drb[S.drb.length - 1][1].toFixed(2)} V` : "–"], ["Minimum", S.drb.length ? `${Math.min(...S.drb.map(p => p[1])).toFixed(2)} V` : "–"], ["Readings", String(S.drb.length)]])}
+${sec("Pill battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${d.bv[d.bv.length - 1].toFixed(2)} V` : "–"], ["Minimum", d.bv.length ? `${Math.min(...d.bv).toFixed(2)} V` : "–"],
   ["First below 3.3 V", dash(d.below33 != null ? `seq ${d.below33}` : null)], ["First below 3.0 V", dash(d.below30 != null ? `seq ${d.below30}` : null)]])}
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v22 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v23 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1608,7 +1636,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v22, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v23, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -1774,11 +1802,12 @@ const CHARTS = {
       return p ? `${tClock(p[0])} · ${p[1].toFixed(1)}/min` : ""; },
     now: () => rateCache && rateCache.bin > 60000 ? `${rateCache.bin / 60000}-min bins` : "" },
   chBatt: { ro: "roBatt", o: () => ({
-      series: [{ pts: S.batt, color: "--ok", dots: true }], minSpan: 0.05,
+      series: [{ pts: S.batt, color: "--ok", dots: true }, { pts: S.drb, color: "--blue", dots: true }], minSpan: 0.05,
       hline: SET.batt != null ? { v: SET.batt, color: "--bad", label: `alert ${SET.batt.toFixed(2)} V` } : null,
       yFmt: (v, st) => v.toFixed(st < 0.1 ? 2 : 1) + " V", empty: "No battery readings yet" }),
-    read: t => { const p = valueAt(S.batt, t); return p ? `${tClock(p[0])} · ${p[1].toFixed(2)} V` : ""; },
-    now: () => S.batt.length ? `now ${S.batt[S.batt.length - 1][1].toFixed(2)} V` : "" },
+    read: t => { const p = valueAt(S.batt, t), q = valueAt(S.drb, t);
+      return [p ? `${tClock(p[0])} · pill ${p[1].toFixed(2)} V` : "", q ? `DR ${q[1].toFixed(2)} V` : ""].filter(Boolean).join(" · "); },
+    now: () => [S.batt.length ? `pill ${S.batt[S.batt.length - 1][1].toFixed(2)} V` : "", S.drb.length ? `DR ${S.drb[S.drb.length - 1][1].toFixed(2)} V` : ""].filter(Boolean).join(" · ") },
   chRssi: { ro: "roRssi", o: () => ({
       series: [{ pts: S.rssiRadio, color: "--blue", dots: true }, { pts: S.rssiLink, color: "--violet", dots: true }, { pts: S.rssiAdv, color: "--adv", dash: true, dots: true }],
       hline: S.rssiRadio.length ? { v: SET.radioWeak ?? -100, color: "--warn", label: `weak radio ${SET.radioWeak ?? -100} dBm` } : null,
@@ -2042,6 +2071,7 @@ function onBattValue(d, how) {
   BATT.mv = d[0] | (d[1] << 8); BATT.ready = d.length >= 3 ? (d[2] & 1) === 1 : BATT.ready; BATT.ts = Date.now(); BATT.live = true;
   log(`[batt] ${BATT.mv} mV pill=${BATT.ready ? "ready" : "not-seen"} (${how}) raw=${Array.from(d, b => b.toString(16).padStart(2, "0")).join(" ")}`);
   if (BATT.ready && !wasReady && how === "notify") toast("Pill ready");
+  if (BATT.mv > 0) onLiveEvent({ ts: BATT.ts, type: "drbatt", mv: BATT.mv, ready: BATT.ready ? 1 : 0 });   // stored in the session: chart + report
   battShow();
 }
 function onBattEvt(e) { onBattValue(toBytes(e.target.value), "notify"); }
@@ -2171,7 +2201,7 @@ async function exportZip() {
   }
   const ev = ["timestamp_iso,type,detail"];
   for (const e of events) ev.push([new Date(e.ts).toISOString(), e.type,
-    JSON.stringify(e.type === "lost" ? `${e.got}/${e.expected}` : e.type === "rssi" ? `${e.src}:${e.dbm}dBm` : `${e.level}: ${e.text}`)].join(","));
+    JSON.stringify(e.type === "lost" ? `${e.got}/${e.expected}` : e.type === "rssi" ? `${e.src}:${e.dbm}dBm` : e.type === "drbatt" ? `${e.mv}mV pill_ready=${e.ready}` : `${e.level}: ${e.text}`)].join(","));
   const att = S.total + S.lost - (S.recovered || 0);
   const summary = [
     "PEEK1 Monitor session summary", `Exported: ${new Date().toISOString()}`,
@@ -2181,7 +2211,8 @@ async function exportZip() {
     `JPEG header bit-slip: ${SET.repair ? `${S.repaired} repaired (${S.refFixed || 0} also needed reference header), ${S.broken} unrepairable` : `auto-repair off, ${S.broken} invalid`} (raw .hex files are unmodified)`,
     `Incomplete frames (BLE loss): ${S.lost}`, `Delivery: ${att ? ((S.total / att) * 100).toFixed(2) + "%" : "-"}`,
     `Sequence gaps (mode "${SET.seq}"): ${SET.seq === "off" ? "not checked" : S.seqGap}`,
-    `Battery: ${S.batt.length ? `last ${S.batt[S.batt.length - 1][1].toFixed(2)} V, min ${Math.min(...S.batt.map(p => p[1])).toFixed(2)} V, max ${Math.max(...S.batt.map(p => p[1])).toFixed(2)} V` : "-"}`,
+    `DR battery: ${S.drb.length ? `last ${S.drb[S.drb.length - 1][1].toFixed(2)} V, min ${Math.min(...S.drb.map(p => p[1])).toFixed(2)} V` : "-"}`,
+    `Pill battery: ${S.batt.length ? `last ${S.batt[S.batt.length - 1][1].toFixed(2)} V, min ${Math.min(...S.batt.map(p => p[1])).toFixed(2)} V, max ${Math.max(...S.batt.map(p => p[1])).toFixed(2)} V` : "-"}`,
     `Max notification chunk: ${S.maxChunk || "-"} B`, `Reconnects (this page load): ${R.reconnects}`, "",
     "Note: internal bench diagnostic, not for clinical use.", ""].join("\n");
   files.push({ name: "summary.txt", data: enc.encode(summary) });
