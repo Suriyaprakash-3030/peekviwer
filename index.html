@@ -634,7 +634,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v23 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v24 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -1170,7 +1170,7 @@ function ingestEvent(ev, live) {
     (ev.src === "link" ? S.rssiLink : S.rssiAdv).push([ev.ts, ev.dbm]);
   } else if (ev.type === "note") { addNote(ev, false); if (!live) S.log.push({ ts: ev.ts, text: `[${ev.level}] ${ev.text}` }); }
 }
-const DR_WARN = 3.55, DR_LOW = 3.45;   // DR battery levels: warning, then the recorder should shut down safely
+const DR_WARN = 3.45, DR_LOW = 3.35;   // DR battery levels: warning, then the recorder should shut down safely
 function checkDrBattery(v, t) {
   if (v < DR_LOW && !R.drLow) { R.drLow = true; note("bad", `DR battery ${v.toFixed(2)} V is below ${DR_LOW.toFixed(2)} V: the recorder may switch off at any moment`, t); toast(`DR battery critical: ${v.toFixed(2)} V`); }
   else if (v < DR_WARN && !R.drWarn) { R.drWarn = true; note("warn", `DR battery ${v.toFixed(2)} V is below ${DR_WARN.toFixed(2)} V: charge the recorder soon`, t); toast(`DR battery low: ${v.toFixed(2)} V`); }
@@ -1615,7 +1615,7 @@ ${sec("Pill battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v23 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v24 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1636,7 +1636,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v23, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v24, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
