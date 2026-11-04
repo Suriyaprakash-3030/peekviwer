@@ -2184,7 +2184,7 @@ async function connectGatt() {
       await rc.startNotifications(); log("[ble] nRF RSSI characteristic found"); } catch { /* not in firmware yet */ }
     try { const dc = await svc.getCharacteristic(CHAR_DIAG_UUID); dc.addEventListener("characteristicvaluechanged", onDiagEvt);
       await dc.startNotifications(); log("[ble] firmware diagnostics characteristic found"); } catch { /* proposed, not in firmware yet */ }
-    R.connectedSince = Date.now(); onLiveEvent({ ts: Date.now(), type: "link", up: true });
+    R.connectedSince = Date.now(); TABS.post({ t: "owner" }); onLiveEvent({ ts: Date.now(), type: "link", up: true });
     if (R.wasUnexpected) { R.reconnects++; R.wasUnexpected = false; note("ok", "Reconnected"); toast("Reconnected"); }
     else note("ok", `Connected to ${device.name || DEVICE_NAME}`);
     setPill("connected", `Connected · ${device.name || DEVICE_NAME}`); setConnButton("Disconnect", false);
@@ -2297,12 +2297,15 @@ function resetView() {
 }
 async function clearSession() {
   if (OFF.active) { await setSource("live"); return; }
-  if (!confirm("Delete all saved frames, events and charts from this browser?")) return;
+  if (!confirm("Delete all saved frames, events and charts from this browser? Other open PEEK1 tabs are cleared too.")) return;
+  TABS.post({ t: "clear" }); clearLocal(true);
+}
+function clearLocal(own) {
   mem.frames.length = 0; mem.events.length = 0;
   if (db) { try { const tx = db.transaction(["frames", "events"], "readwrite"); tx.objectStore("frames").clear(); tx.objectStore("events").clear(); } catch { /* ignore */ } }
   const keepChunk = S.maxChunk; resetView(); S.maxChunk = keepChunk;
   if (P.rec) pvRecStop(); P.cache.clear(); G.page = 0;
-  $("storedCount").textContent = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); renderLog(); pvBuild("end"); toast("Session cleared");
+  $("storedCount").textContent = 0; renderGallery(); renderTimeline(); renderStats(); scheduleDraw(); renderLog(); pvBuild("end"); toast(own ? "Session cleared" : "Session cleared from another tab");
 }
 
 
@@ -2645,6 +2648,41 @@ function ctlInit() {
     h.classList.toggle("cb-open", on); $("btnCtl").setAttribute("aria-expanded", String(on)); };
   ctlRender(); setInterval(ctlRender, 1000);
 }
+
+// ---------------- one capsule, one tab (v26) ----------------
+// A tab that has connected once keeps reconnecting whenever the capsule advertises, so a forgotten tab could
+// keep writing frames into the shared store. Tabs now talk to each other: a connect in one tab releases the
+// capsule in every other tab, Clear session clears all tabs, and a banner shows when the page is open twice.
+const TABS = (() => {
+  const viewer = new URLSearchParams(location.search).has("view");
+  let ch = null; try { if (!viewer && "BroadcastChannel" in window) ch = new BroadcastChannel("peek1_tabs"); } catch { /* unsupported */ }
+  const me = Math.random().toString(36).slice(2), peers = new Map();
+  const post = m => { if (ch) try { ch.postMessage({ ...m, from: me }); } catch { /* closed */ } };
+  function banner() {
+    for (const [id, t] of peers) if (Date.now() - t > 12000) peers.delete(id);
+    setBanner("tabs", "warn", peers.size ? `PEEK1 Monitor is also open in ${peers.size} other tab${peers.size > 1 ? "s" : ""} or window${peers.size > 1 ? "s" : ""} of this browser. They share the same saved data; close the extra ones.` : "");
+  }
+  function release() {
+    if (!device) return;
+    const was = device.gatt.connected;
+    manualDisconnect = true; clearTimeout(reconnectTimer); stopAdvWatch();
+    if (was) try { device.gatt.disconnect(); } catch { /* already gone */ }
+    note("warn", "Capsule connected in another tab; this tab stopped receiving and will not reconnect");
+    setTimeout(() => { setPill("", "Capsule is in another tab"); setConnButton("Connect", true); }, 50);
+  }
+  if (ch) ch.onmessage = e => {
+    const m = e.data || {}; if (m.from === me) return;
+    if (m.t === "bye") peers.delete(m.from); else peers.set(m.from, Date.now());
+    if (m.t === "hello") post({ t: "here" });
+    else if (m.t === "owner") release();
+    else if (m.t === "clear") clearLocal(false);
+    banner();
+  };
+  post({ t: "hello" });
+  setInterval(() => { post({ t: "here" }); banner(); }, 5000);
+  addEventListener("pagehide", () => post({ t: "bye" }));
+  return { post };
+})();
 
 crSelect(SET.crTab || "trends"); simInit(); ctlInit();
 $("rpPrint").addEventListener("click", printReport);
