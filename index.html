@@ -287,6 +287,41 @@ canvas { display: block; width: 100%; height: 150px; touch-action: pan-y; cursor
   .rp-flags li, .la-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+/* ---------- Capsule control (v25) ---------- */
+.ctl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ctl-box { background: var(--panel2); border-radius: 10px; padding: 12px; min-width: 0; display: grid; gap: 8px; align-content: start; }
+.ctl-box h3 { font-family: var(--num); font-size: 1.02rem; font-weight: 600; margin: 0; }
+.ctl-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.ctl-row button { padding: 6px 11px; font-size: .84rem; }
+.ctl-quick button { flex: 1; padding: 5px 0; min-width: 40px; }
+.ctl-sw { display: flex; align-items: center; gap: 8px; font-size: .9rem; cursor: pointer; }
+.ctl-sw input { width: 18px; height: 18px; accent-color: var(--blue); }
+.ctl-col { width: 100%; } .ctl-col button { flex: 1; padding: 6px 8px; font-size: .84rem; }
+.ctl-int { display: flex; justify-content: space-between; font-size: .84rem; color: var(--muted); }
+.ctl-int output { font-family: var(--num); font-weight: 600; font-size: 1.15rem; color: var(--ink); }
+.ctl-led input[type=range] { width: 100%; accent-color: var(--blue); }
+.ctl-led[data-cam="b"] input[type=range] { accent-color: var(--violet); }
+.ctl-box .form input { width: 80px; }
+.ctlbar .wrap { flex-wrap: wrap; gap: 8px 16px; padding-top: 7px; padding-bottom: 8px; border-top: 1px solid var(--line); font-size: .84rem; }
+.ctlbar button { padding: 5px 11px; font-size: .82rem; }
+.cb-state { font-weight: 600; font-size: .8rem; padding: 3px 9px; border-radius: 999px; background: var(--bluebg); white-space: nowrap; }
+.ctlbar.off .cb-state { background: var(--panel2); color: var(--muted); }
+.ctlbar.off .wrap > :not(.cb-state) { opacity: .5; }
+.cb-grp { display: flex; gap: 6px; align-items: center; }
+.cb-cams { gap: 12px; }
+.cb-led { display: flex; align-items: center; gap: 8px; }
+.cb-t { font-weight: 600; white-space: nowrap; }
+.cb-led .filters button { padding: 4px 9px; font-size: .78rem; }
+.cb-led input[type=range] { width: 120px; accent-color: var(--blue); }
+.cb-led[data-cam="b"] input[type=range] { accent-color: var(--violet); }
+.cb-led output { font-family: var(--num); font-weight: 600; font-size: 1.05rem; min-width: 3.2em; }
+.cb-toggle { display: none; }
+@media (max-width: 900px) {
+  .cb-toggle { display: inline-block; padding: 8px 12px; }
+  .ctlbar { display: none; } header.top.cb-open .ctlbar { display: block; }
+  .cb-led { flex-wrap: wrap; } .cb-led input[type=range] { flex: 1; min-width: 120px; }
+}
+@media (max-width: 600px) { .ctl-grid { grid-template-columns: 1fr; } }
 .rm-note { font-size: .84rem; color: var(--muted); margin: 0 0 12px; }
 .crtabs { display: none; }
 
@@ -376,7 +411,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
   .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; } .strip div:nth-child(4) { border-left: 0; }
 }
 @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .col { display: contents; }
-  .o-loss { order: 1; } .o-report { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
+  .o-loss { order: 1; } .o-report { order: 1; } .o-ctl { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
   .o-session { order: 6; } .o-settings { order: 7; } .o-log { order: 8; } }
 @media (max-width: 600px) {
   .wrap { padding: 0 10px 24px; }
@@ -411,7 +446,23 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
     <button id="btnImg" title="Image size: Fit / Native / Enhanced">Image: Fit</button>
     <button id="btnConn" class="primary">Connect</button>
     <button id="btnOpen" class="primary" hidden>Open file…</button>
+    <button id="btnCtl" class="cb-toggle" aria-expanded="false" aria-controls="ctlBar">Control</button>
     <input type="file" id="fileIn" accept=".bin,.dat,.raw,.hex,.txt,application/octet-stream" multiple hidden>
+  </div>
+  <div class="ctlbar off" id="ctlBar" role="region" aria-label="Capsule control">
+    <div class="wrap">
+      <span class="cb-state" id="ctlState">Not connected</span>
+      <div class="cb-grp"><button id="ctlStart" class="primary">▶ Start</button><button id="ctlStop">■ Stop</button></div>
+      <div class="cb-grp cb-cams"><label class="ctl-sw"><input type="checkbox" id="ctlCamF"><span class="f">Front cam</span></label>
+        <label class="ctl-sw"><input type="checkbox" id="ctlCamB"><span class="b">Back cam</span></label></div>
+      <div class="cb-led ctl-led" data-cam="f"><span class="cb-t f">Front LED</span>
+        <div class="filters ctl-col" role="group" aria-label="Front LED colour"><button data-led="AA"></button><button data-led="BB"></button></div>
+        <input type="range" min="0" max="100" step="1" value="0" aria-label="Front LED intensity"><output>0%</output></div>
+      <div class="cb-led ctl-led" data-cam="b"><span class="cb-t b">Back LED</span>
+        <div class="filters ctl-col" role="group" aria-label="Back LED colour"><button data-led="AA"></button><button data-led="BB"></button></div>
+        <input type="range" min="0" max="100" step="1" value="0" aria-label="Back LED intensity"><output>0%</output></div>
+      <div class="cb-grp"><button id="ctlTime" title="Sends the PC clock (hour, minute, second)">Sync time</button><button id="ctlMore">More…</button></div>
+    </div>
   </div>
 </header>
 <div id="drop">Drop .bin or .hex files to open them offline</div>
@@ -484,7 +535,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
     <nav class="crtabs" id="crTabs" role="tablist" aria-label="Panels">
       <button role="tab" data-tab="trends">Trends</button><button role="tab" data-tab="loss">Loss</button><button role="tab" data-tab="report">Report</button>
       <button role="tab" data-tab="play">Playback</button><button role="tab" data-tab="gallery">Gallery</button><button role="tab" data-tab="events">Events</button>
-      <button role="tab" data-tab="setup">Setup</button>
+      <button role="tab" data-tab="control">Control</button><button role="tab" data-tab="setup">Setup</button>
     </nav>
     <div class="col">
 
@@ -582,6 +633,21 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
           <div class="legend"><span><i style="border-color:var(--blue)"></i>Radio, capsule → recorder</span><span><i style="border-color:var(--violet)"></i>BLE, reported by nRF</span><span><i class="dash" style="border-color:var(--adv)"></i>Advertising (disconnected)</span></div>
           <canvas id="chRssi" tabindex="0" aria-label="RSSI over time"></canvas>
         </div>
+      </section>
+
+      <section class="card o-ctl" id="ctlCard">
+        <h2>Capsule control <span class="act muted">Stream, cameras and LEDs are in the bar at the top</span></h2>
+        <p class="rm-note">Commands go to the nRF over BLE (characteristic 6e400002, write). The firmware does not report its settings back, so the controls show what was last sent from here.</p>
+        <div class="ctl-box">
+          <h3>Capture</h3>
+          <div class="form">
+            <label for="ctlCount">Image count<small>0–255</small></label><input id="ctlCount" type="number" min="0" max="255" step="1" value="0" inputmode="numeric">
+            <label for="ctlMethod">Stream method<small>0–255, as the firmware defines it</small></label><input id="ctlMethod" type="number" min="0" max="255" step="1" value="0" inputmode="numeric">
+          </div>
+          <div class="ctl-row"><button id="ctlCountGo">Send count</button><button id="ctlMethodGo">Send method</button></div>
+        </div>
+        <div class="la-sub">Last commands</div>
+        <pre class="mono" id="ctlHist" style="margin:0;font-size:.74rem;color:var(--muted);max-height:220px;overflow:auto;white-space:pre-wrap">None sent yet</pre>
       </section>
 
       <section class="card o-sim" id="simCard">
@@ -2102,9 +2168,11 @@ async function connectGatt() {
     const server = await device.gatt.connect();
     stopAdvWatch();
     const svc = await server.getPrimaryService(SERVICE_UUID);
+    CTL.ch = null;
     try { const info = await svc.getCharacteristic(CHAR_INFO_UUID);
-      info.addEventListener("characteristicvaluechanged", onInfoEvt); await info.startNotifications(); }
-    catch (e) { log(`[ble] image info characteristic (6e400002) not available: ${e.message}`); }
+      if (info.properties.write || info.properties.writeWithoutResponse) { CTL.ch = info; log("[ctl] control characteristic (6e400002) ready"); }
+      if (info.properties.notify) { info.addEventListener("characteristicvaluechanged", onInfoEvt); await info.startNotifications(); } }
+    catch (e) { log(`[ble] characteristic 6e400002 not available: ${e.message}`); }
     const tx = await svc.getCharacteristic(CHAR_TX_UUID);
     tx.addEventListener("characteristicvaluechanged", onTxEvt);
     await tx.startNotifications();
@@ -2425,7 +2493,7 @@ async function restore() {
 
 // ---------------- control room tabs (v14) ----------------
 const CR_TABS = { trends: [".o-trends"], loss: [".o-loss"], report: [".o-report"], play: [".o-play"], gallery: [".o-gallery"],
-  events: [".o-events"], setup: [".o-sim", ".o-session", ".o-settings", ".o-log"] };
+  events: [".o-events"], control: [".o-ctl"], setup: [".o-sim", ".o-session", ".o-settings", ".o-log"] };
 function crSelect(tab) {
   if (!CR_TABS[tab]) tab = "trends";
   SET.crTab = tab; saveSettings();
@@ -2503,7 +2571,82 @@ $("laCsv").addEventListener("click", exportLossCsv);
 q("#crTabs button").forEach(b => b.addEventListener("click", () => crSelect(b.dataset.tab)));
 $("crTabs").addEventListener("keydown", e => { const bs = q("#crTabs button"), i = bs.findIndex(b => b.getAttribute("aria-selected") === "true");
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = bs[(i + (e.key === "ArrowRight" ? 1 : bs.length - 1)) % bs.length]; crSelect(n.dataset.tab); n.focus(); e.preventDefault(); } });
-crSelect(SET.crTab || "trends"); simInit();
+// ---------------- capsule control (v25) ----------------
+// nRF rx_write_callback commands, all written to 6e400002:
+//   08 01 01 / 08 01 00  start / stop stream      07 01 xx / 07 02 xx  front / back camera on (01) or off (00)
+//   07 03|04 vv  front LED 0xAA|0xBB, intensity   07 05|06 vv  back LED 0xAA|0xBB, intensity (vv 0..255 -> firmware 0..100 %)
+//   07 0A hh mm ss  time    07 0B nn  image count    07 09 nn  stream method
+const LED_NAME = { AA: "LED 1 (0xAA)", BB: "LED 2 (0xBB)" };   // rename to the real colours, e.g. "White", "Blue"
+const LED_OP = { f: { AA: 0x03, BB: 0x04 }, b: { AA: 0x05, BB: 0x06 } };
+const CTL = { ch: null, q: Promise.resolve(), timers: {}, hist: [], flash: null };
+SET.ctl = Object.assign({ f: { led: "AA", pct: 0 }, b: { led: "AA", pct: 0 }, camF: true, camB: true, count: 0, method: 0 }, SET.ctl || {});
+const ctlHex = d => Array.from(d, b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
+function ctlReady() { return !!(CTL.ch && device && device.gatt.connected && !OFF.active); }
+function ctlSend(bytes, what, record) {
+  if (!ctlReady()) { toast("Connect the capsule first"); return Promise.resolve(false); }
+  const data = new Uint8Array(bytes);
+  CTL.q = CTL.q.then(async () => {                       // one GATT write at a time
+    try {
+      if (CTL.ch.writeValueWithoutResponse && CTL.ch.properties.writeWithoutResponse) await CTL.ch.writeValueWithoutResponse(data);
+      else await CTL.ch.writeValue(data);
+      CTL.hist.unshift(`${tClock(Date.now())}  ${what}  ·  ${ctlHex(data)}`); CTL.hist.length = Math.min(CTL.hist.length, 50);
+      $("ctlHist").textContent = CTL.hist.join("\n"); CTL.flash = { text: `✓ ${what}`, until: Date.now() + 2500 }; ctlRender();
+      log(`[ctl] ${what} → ${ctlHex(data)}`); if (record) note("info", `Control: ${what}`);
+      return true;
+    } catch (e) {
+      CTL.hist.unshift(`${tClock(Date.now())}  FAILED ${what}: ${e.message}`); $("ctlHist").textContent = CTL.hist.join("\n");
+      log(`[ctl] ${what} failed: ${e.message}`); toast(`Command failed: ${e.message}`); return false;
+    }
+  });
+  return CTL.q;
+}
+function ledSend(cam, record) {
+  const s = SET.ctl[cam], v = Math.round(s.pct * 255 / 100);
+  return ctlSend([0x07, LED_OP[cam][s.led], v], `${cam === "f" ? "front" : "back"} ${LED_NAME[s.led]} ${s.pct}%`, record);
+}
+function ctlRender() {
+  const ok = ctlReady();
+  $("ctlBar").classList.toggle("off", !ok);
+  $("ctlState").textContent = OFF.active ? "Control: offline file" : !ok ? (device && device.gatt.connected ? "Control: not supported by firmware" : "Control: not connected")
+    : CTL.flash && Date.now() < CTL.flash.until ? CTL.flash.text : "Control ready";
+  q("#ctlBar button, #ctlBar input, #ctlCard button, #ctlCard input").forEach(el => { el.disabled = !ok; });
+  $("ctlMore").disabled = false;
+  for (const box of q(".ctl-led")) {
+    const cam = box.dataset.cam, s = SET.ctl[cam];
+    box.querySelectorAll("[data-led]").forEach(b => { b.textContent = LED_NAME[b.dataset.led]; b.setAttribute("aria-pressed", String(b.dataset.led === s.led)); });
+    box.querySelector("output").textContent = s.pct + "%";
+    const r = box.querySelector("input[type=range]"); if (document.activeElement !== r) r.value = s.pct;
+  }
+  $("ctlCamF").checked = SET.ctl.camF; $("ctlCamB").checked = SET.ctl.camB;
+}
+function ctlInit() {
+  $("ctlStart").onclick = () => ctlSend([0x08, 0x01, 0x01], "start stream", true);
+  $("ctlStop").onclick = () => ctlSend([0x08, 0x01, 0x00], "stop stream", true);
+  $("ctlTime").onclick = () => { const d = new Date(); ctlSend([0x07, 0x0A, d.getHours(), d.getMinutes(), d.getSeconds()], `time ${d.toLocaleTimeString([], { hour12: false })}`, true); };
+  for (const [id, key, n] of [["ctlCamF", "camF", 0x01], ["ctlCamB", "camB", 0x02]])
+    $(id).addEventListener("change", e => { SET.ctl[key] = e.target.checked; saveSettings();
+      ctlSend([0x07, n, e.target.checked ? 0x01 : 0x00], `${n === 1 ? "front" : "back"} camera ${e.target.checked ? "on" : "off"}`, true); });
+  for (const box of q(".ctl-led")) {
+    const cam = box.dataset.cam, s = SET.ctl[cam], r = box.querySelector("input[type=range]");
+    box.querySelectorAll("[data-led]").forEach(b => b.addEventListener("click", () => { s.led = b.dataset.led; saveSettings(); ctlRender(); ledSend(cam, true); }));
+    r.addEventListener("input", () => {                  // live while dragging, at most ~6 writes per second
+      s.pct = Number(r.value); box.querySelector("output").textContent = s.pct + "%";
+      if (!CTL.timers[cam]) CTL.timers[cam] = setTimeout(() => { CTL.timers[cam] = null; ledSend(cam, false); }, 160);
+    });
+    r.addEventListener("change", () => { clearTimeout(CTL.timers[cam]); CTL.timers[cam] = null; s.pct = Number(r.value); saveSettings(); ledSend(cam, true); });
+    box.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => { s.pct = Number(b.dataset.p); saveSettings(); ctlRender(); ledSend(cam, true); }));
+  }
+  const num = id => { const v = Math.max(0, Math.min(255, parseInt($(id).value, 10) || 0)); $(id).value = v; return v; };
+  $("ctlCount").value = SET.ctl.count; $("ctlMethod").value = SET.ctl.method;
+  $("ctlCountGo").onclick = () => { SET.ctl.count = num("ctlCount"); saveSettings(); ctlSend([0x07, 0x0B, SET.ctl.count], `image count ${SET.ctl.count}`, true); };
+  $("ctlMethodGo").onclick = () => { SET.ctl.method = num("ctlMethod"); saveSettings(); ctlSend([0x07, 0x09, SET.ctl.method], `stream method ${SET.ctl.method}`, true); };
+  $("ctlMore").onclick = () => { crSelect("control"); $("ctlCard").scrollIntoView({ behavior: "smooth", block: "nearest" }); };
+  $("btnCtl").onclick = () => { const h = document.querySelector("header.top"), on = !h.classList.contains("cb-open");
+    h.classList.toggle("cb-open", on); $("btnCtl").setAttribute("aria-expanded", String(on)); };
+  ctlRender(); setInterval(ctlRender, 1000);
+}
+
+crSelect(SET.crTab || "trends"); simInit(); ctlInit();
 $("rpPrint").addEventListener("click", printReport);
 $("rpDl").addEventListener("click", downloadReport);
 // ---------- E. last-resort error guard (v12): never fail silently ----------
