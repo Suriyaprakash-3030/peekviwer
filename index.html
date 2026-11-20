@@ -411,7 +411,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
   .strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; } .strip div:nth-child(4) { border-left: 0; }
 }
 @media (max-width: 900px) { .main { grid-template-columns: 1fr; } .col { display: contents; }
-  .o-loss { order: 1; } .o-report { order: 1; } .o-ctl { order: 1; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
+  .o-loss { order: 1; } .o-report { order: 1; } .o-ctl { order: 1; } .o-imu { order: 2; } .o-play { order: 2; } .o-trends { order: 3; } .o-gallery { order: 4; } .o-events { order: 5; }
   .o-session { order: 6; } .o-settings { order: 7; } .o-log { order: 8; } }
 @media (max-width: 600px) {
   .wrap { padding: 0 10px 24px; }
@@ -533,7 +533,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
 
   <div class="main">
     <nav class="crtabs" id="crTabs" role="tablist" aria-label="Panels">
-      <button role="tab" data-tab="trends">Trends</button><button role="tab" data-tab="loss">Loss</button><button role="tab" data-tab="report">Report</button>
+      <button role="tab" data-tab="trends">Trends</button><button role="tab" data-tab="imu">IMU</button><button role="tab" data-tab="loss">Loss</button><button role="tab" data-tab="report">Report</button>
       <button role="tab" data-tab="play">Playback</button><button role="tab" data-tab="gallery">Gallery</button><button role="tab" data-tab="events">Events</button>
       <button role="tab" data-tab="control">Control</button><button role="tab" data-tab="setup">Setup</button>
     </nav>
@@ -635,6 +635,8 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
         </div>
       </section>
 
+      <section class="card o-imu" id="imuCard"></section>
+
       <section class="card o-ctl" id="ctlCard">
         <h2>Capsule control <span class="act muted">Stream, cameras and LEDs are in the bar at the top</span></h2>
         <p class="rm-note">Commands go to the nRF over BLE (characteristic 6e400002, write). The firmware does not report its settings back, so the controls show what was last sent from here.</p>
@@ -700,7 +702,7 @@ footer { margin-top: 20px; font-size: .76rem; color: var(--muted); text-align: c
       </details>
     </div>
   </div>
-  <footer>PEEK1 Monitor v24 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
+  <footer>PEEK1 Monitor v27 · created by Suriyaprakash Munuswamy · internal bench tool · not for clinical use · data stays in this browser until exported</footer>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
@@ -734,7 +736,7 @@ function radioRssiOf(f) {                // byte 6, written by the recorder (STM
   const v = f[6] > 127 ? f[6] - 256 : f[6];
   return v < 0 ? v : null;
 }
-function parseSystemData(f) {          // same byte map as parse_system_data()
+function parseSystemData(f) {          // same byte map as the capsule firmware (v27: bytes 14..19 changed)
   if (f.length < 27) return null;
   return {
     camId: f[7],
@@ -742,9 +744,8 @@ function parseSystemData(f) {          // same byte map as parse_system_data()
     timeSecRaw: f[10] | (f[11] << 8),
     imgCountDocumented: f[12] | (f[13] << 8),
     imgCountObserved: f[25],                       // NOTE: also low byte of BE seq at 24–25
-    acc: [f[14] | (f[15] << 8), f[16] | (f[17] << 8), f[18] | (f[19] << 8)],
-    gyroXY: [f[20] | (f[21] << 8), f[22] | (f[23] << 8)],
-    gyroZRaw: f[24] | (f[25] << 8),
+    rxWindow: f[14] === 1,                         // v27: the capsule opens a 60 ms receive window after this frame
+    imuValid: !!(f[19] & 1),                       // v27: bytes 15..19 = acc X Y Z (int8), gyro byte, flags
     pillMode: f[26],
     radioRssi: radioRssiOf(f),
   };
@@ -992,7 +993,277 @@ function makeZip(files) {               // files: [{name, data:Uint8Array}]
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
   return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
 }
-</script><script>
+</script>
+<script id="imu">
+/* PEEK1 Monitor: IMU orientation panel (3D capsule + pattern strip). No libraries, works offline.
+ *
+ * Frame bytes (firmware IMU_DATA = 1):  15,16,17 = acc X,Y,Z int8 (16 per g)   18 = gyro byte (byte^2 / 16.4 = dps)
+ *                                       19 = flags: b0 valid, b1 motion interrupt, b2 gyro included
+ * What the data can and cannot show:
+ *   - tilt (pitch, roll) from gravity: only while the capsule rests (|acc| about 1 g). No yaw.
+ *   - one sample per capture cycle (about every 1.5 s): the animation between samples is smoothing only.
+ *   - gyro: magnitude only (rate at the sample instant).
+ */
+const PEEK_IMU = (() => {
+  "use strict";
+  const MAXPTS = 5000, NR = 20, LS = 0.55, HL = 1.0, ELEV = 0.38;
+  const G_LO = 0.85, G_HI = 1.15, STRIP_N = 120;
+  const st = { pts: [], sel: null, axis: { long: "x", sign: 1 }, tgt: [0, 0, 1], cur: [0, 0, 1], haveUp: false, tween: false, dirty: true };
+  try { const a = JSON.parse(localStorage.getItem("peek1_imu_axis") || "null"); if (a && "xyz".includes(a.long) && (a.sign === 1 || a.sign === -1)) st.axis = a; } catch { /* default */ }
+  let host = null, cv, strip, ro, info, selAxis, chkSign, btnLive, btnPrev, btnNext, msg;
+
+  // ---------- small vector helpers ----------
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const len = a => Math.hypot(a[0], a[1], a[2]);
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const unit = a => { const n = len(a) || 1; return [a[0] / n, a[1] / n, a[2] / n]; };
+  const s8 = b => (b > 127 ? b - 256 : b);
+
+  // ---------- decode / evaluate ----------
+  function fromFrame(f, ts, cam, seq) {                    // f = whole frame bytes; null when the frame has no IMU sample
+    if (!f || f.length < 20 || !(f[19] & 1)) return null;
+    return { ts, x: s8(f[15]), y: s8(f[16]), z: s8(f[17]), gyr: f[18], fl: f[19], cam, seq };
+  }
+  function toCaps(p) {                                     // sensor axes -> capsule axes (Xc = long axis, front camera at +Xc)
+    const g = [p.x / 16, p.y / 16, p.z / 16], L = st.axis.long;
+    const a = L === "x" ? [g[0], g[1], g[2]] : L === "y" ? [g[1], g[2], g[0]] : [g[2], g[0], g[1]];   // cyclic: stays right-handed
+    if (st.axis.sign < 0) { a[0] = -a[0]; a[1] = -a[1]; }  // 180 deg about Zc
+    return a;
+  }
+  function evalP(p) {
+    const a = toCaps(p), mag = len(a), sat = Math.max(Math.abs(p.x), Math.abs(p.y), Math.abs(p.z)) >= 127;
+    const gyroOn = !!(p.fl & 4), dps = gyroOn ? (p.gyr * p.gyr) / 16.4 : null;
+    return { a, mag, sat, valid: !sat && mag >= G_LO && mag <= G_HI, dps, motion: !!(p.fl & 2) };
+  }
+
+  // ---------- data in ----------
+  function push(p) {
+    if (!p) return;
+    const q = st.pts[st.pts.length - 1];                   // the two cameras of one cycle carry the same sample: keep only the first (front)
+    if (q && p.cam === "B" && q.cam === "F" && q.x === p.x && q.y === p.y && q.z === p.z && q.gyr === p.gyr && q.fl === p.fl) return;
+    st.pts.push(p);
+    if (st.pts.length > MAXPTS) { st.pts.splice(0, 500); if (st.sel != null) st.sel = Math.max(0, st.sel - 500); }
+    refreshTarget(); st.dirty = true;
+  }
+  function reset() { st.pts.length = 0; st.sel = null; st.haveUp = false; st.dirty = true; refreshTarget(); }
+  function shown() { return st.pts.length ? (st.sel != null ? Math.min(st.sel, st.pts.length - 1) : st.pts.length - 1) : -1; }
+  function refreshTarget() {                               // newest valid sample at or before the shown one drives the tilt
+    const i = shown();
+    for (let k = i; k >= 0; k--) {
+      const e = evalP(st.pts[k]);
+      if (e.valid) { const u = unit(e.a); if (!st.haveUp) { st.cur = u; st.haveUp = true; } st.tgt = u; st.tween = true; return; }
+    }
+  }
+
+  // ---------- capsule mesh ----------
+  const prof = [];
+  (function () {
+    const K = 7;
+    for (let i = 0; i <= K; i++) { const ph = Math.PI / 2 * i / K; prof.push({ x: HL + LS * Math.cos(ph), r: LS * Math.sin(ph), nx: Math.cos(ph), nr: Math.sin(ph) }); }
+    for (let i = 1; i <= 3; i++) prof.push({ x: HL - 2 * HL * i / 4, r: LS, nx: 0, nr: 1 });
+    for (let i = 0; i <= K; i++) { const ph = Math.PI / 2 + Math.PI / 2 * i / K; prof.push({ x: -HL + LS * Math.cos(ph), r: LS * Math.sin(ph), nx: Math.cos(ph), nr: Math.sin(ph) }); }
+  })();
+  const ca = [], sa = [];
+  for (let j = 0; j <= NR; j++) { const a = 2 * Math.PI * j / NR; ca.push(Math.cos(a)); sa.push(Math.sin(a)); }
+  const verts = prof.map(p => Array.from({ length: NR + 1 }, (_, j) => ({ v: [p.x, p.r * ca[j], p.r * sa[j]], n: [p.nx, p.nr * ca[j], p.nr * sa[j]] })));
+  const LIGHT = unit([-0.45, -0.55, 0.75]);
+
+  function basis(u) {                                      // world axes in capsule coordinates: up = measured gravity direction
+    let r = [1 - u[0] * u[0], -u[0] * u[1], -u[0] * u[2]], n = len(r);
+    if (n < 1e-3) { r = [-u[1] * u[0], 1 - u[1] * u[1], -u[1] * u[2]]; n = len(r); }
+    r = [r[0] / n, r[1] / n, r[2] / n];
+    return { r, f: cross(u, r), u };
+  }
+
+  // ---------- colours ----------
+  const cvar = (n, d) => (getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d);
+  const _c = document.createElement("canvas"); _c.width = _c.height = 1;
+  const _g = _c.getContext("2d", { willReadFrequently: true });
+  function rgb(c) { _g.clearRect(0, 0, 1, 1); _g.fillStyle = "#000"; _g.fillStyle = c; _g.fillRect(0, 0, 1, 1); const d = _g.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]]; }
+
+  // ---------- drawing ----------
+  function sizeCanvas(c) {
+    const dpr = window.devicePixelRatio || 1, W = c.clientWidth || 300, H = c.clientHeight || 150;
+    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+    const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+    return { g, W, H };
+  }
+  function drawCapsule() {
+    const { g, W, H } = sizeCanvas(cv);
+    const i = shown(), e = i >= 0 ? evalP(st.pts[i]) : null;
+    const ink = cvar("--ink", "#102328"), muted = cvar("--muted", "#56696E"), line = cvar("--line", "#CFDBD9");
+    const fc = rgb(cvar("--blue", "#0B6E75")), bc = rgb(cvar("--violet", "#A8406E")), nc = rgb(muted);
+    if (!e || !st.haveUp) {
+      g.fillStyle = muted; g.font = "13px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.fillText(i < 0 ? "No IMU data yet (firmware IMU_DATA = 1, gyro optional)" : "No resting sample yet: tilt cannot be shown", W / 2, H / 2); return;
+    }
+    const moving = !e.valid, dev = Math.abs(e.mag - 1);
+    const B = basis(st.cur), ce = Math.cos(ELEV), se = Math.sin(ELEV);
+    const scale = Math.min(W / 4.6, H / 4.3), cx = W / 2, cy = H / 2;
+    const jit = moving ? Math.min(7, dev * 9) : 0, jx = jit * Math.sin(performance.now() / 37), jy = jit * Math.cos(performance.now() / 29);
+    const P = v => { const R = dot(v, B.r), F = dot(v, B.f), U = dot(v, B.u); return { x: cx + jx + R * scale, y: cy + jy - (U * ce + F * se) * scale, d: F * ce - U * se }; };
+
+    // floor + gravity arrow
+    g.save();
+    g.strokeStyle = line; g.fillStyle = "rgba(128,128,128,.07)"; g.lineWidth = 1;
+    g.beginPath(); g.ellipse(cx, cy + scale * 1.75 * ce, scale * 1.9, scale * 1.9 * se, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.restore();
+    const ax = W - 26, ay0 = 24, ay1 = 74;
+    g.strokeStyle = muted; g.fillStyle = muted; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(ax, ay0); g.lineTo(ax, ay1); g.stroke();
+    g.beginPath(); g.moveTo(ax - 5, ay1 - 8); g.lineTo(ax + 5, ay1 - 8); g.lineTo(ax, ay1 + 2); g.fill();
+    g.font = "11px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "bottom"; g.fillText("gravity", ax, ay0 - 3);
+
+    // gyro ring (rate at the sample instant, not an animation)
+    if (e.dps != null) {
+      const k = Math.min(1, Math.log10(1 + e.dps) / 2.7);
+      g.save(); g.globalAlpha = 0.15 + 0.7 * k; g.strokeStyle = cvar("--warn", "#A86400"); g.lineWidth = 1 + 5 * k;
+      g.beginPath(); g.ellipse(cx + jx, cy + jy, scale * 2.1, scale * 1.9, 0, 0, Math.PI * 2); g.stroke(); g.restore();
+    }
+
+    // faces
+    const T = verts.map(row => row.map(o => {
+      const p = P(o.v), nw = [dot(o.n, B.r), dot(o.n, B.f), dot(o.n, B.u)];
+      return { x: p.x, y: p.y, d: p.d, n: nw };
+    }));
+    const faces = [];
+    for (let k = 0; k + 1 < prof.length; k++) for (let j = 0; j < NR; j++) {
+      const q = [T[k][j], T[k][j + 1], T[k + 1][j + 1], T[k + 1][j]];
+      const xm = (prof[k].x + prof[k + 1].x) / 2, n = [0, 0, 0];
+      for (const v of q) { n[0] += v.n[0]; n[1] += v.n[1]; n[2] += v.n[2]; }
+      faces.push({ q, d: (q[0].d + q[1].d + q[2].d + q[3].d) / 4, sh: 0.30 + 0.70 * Math.max(0, dot(unit(n), LIGHT)), xm, seam: j === 0 });
+    }
+    faces.sort((a, b) => b.d - a.d);
+    g.save(); g.globalAlpha = moving ? 0.6 : 1;
+    for (const f of faces) {
+      const base = f.seam ? [235, 235, 235] : Math.abs(f.xm) < 0.1 ? nc : f.xm > 0 ? fc : bc;     // light seam line = roll marker
+      const col = `rgb(${Math.round(base[0] * f.sh)},${Math.round(base[1] * f.sh)},${Math.round(base[2] * f.sh)})`;
+      g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 0.7;
+      g.beginPath(); g.moveTo(f.q[0].x, f.q[0].y); for (let m = 1; m < 4; m++) g.lineTo(f.q[m].x, f.q[m].y); g.closePath(); g.fill(); g.stroke();
+    }
+    g.restore();
+
+    // camera tips
+    g.font = "600 12px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    for (const [sgn, lab, col] of [[1, "F", fc], [-1, "B", bc]]) {
+      const t = P([sgn * (HL + LS), 0, 0]), c0 = P([0, 0, 0]);
+      const dx = t.x - c0.x, dy = t.y - c0.y, n = Math.hypot(dx, dy) || 1, tx = t.x + dx / n * 14, ty = t.y + dy / n * 14;
+      g.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; g.beginPath(); g.arc(tx, ty, 9, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#fff"; g.fillText(lab, tx, ty + 0.5);
+    }
+
+    // status
+    g.textAlign = "left"; g.textBaseline = "top"; g.font = "600 12px system-ui, sans-serif";
+    g.fillStyle = moving ? cvar("--warn", "#A86400") : cvar("--ok", "#2F7D4A");
+    g.fillText(moving ? (e.sat ? "SATURATED (> 7.9 g): tilt not valid" : `MOVING (|a| = ${e.mag.toFixed(2)} g): tilt not reliable, last resting pose shown`) : "RESTING: tilt reliable", 10, 8);
+  }
+
+  function drawStrip() {
+    const { g, W, H } = sizeCanvas(strip);
+    const muted = cvar("--muted", "#56696E"), grid = cvar("--grid", "#E2EAE8"), tcol = cvar("--blue", "#0B6E75"), vcol = cvar("--violet", "#A8406E");
+    const n = st.pts.length;
+    if (!n) { g.fillStyle = muted; g.font = "12px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("Pattern appears here", W / 2, H / 2); return; }
+    const L = 34, R = 6, T = 8, B = 16, pw = W - L - R, ph = H - T - B;
+    const i1 = Math.max(shown(), 0), i0 = Math.max(0, i1 - STRIP_N + 1), cnt = i1 - i0 + 1;
+    const X = k => L + (cnt <= 1 ? pw / 2 : ((k - i0) / (cnt - 1)) * pw);
+    const YA = d => T + ph - Math.min(1, d / 1.0) * ph;                         // |acc| deviation from 1 g, 0..1 g
+    g.font = "10px system-ui, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+    for (const [v, t] of [[0, "0"], [0.5, "0.5 g"], [1, "1 g"]]) { const y = Math.round(YA(v)) + .5; g.strokeStyle = grid; g.beginPath(); g.moveTo(L, y); g.lineTo(W - R, y); g.stroke(); g.fillStyle = muted; g.fillText(t, L - 4, y); }
+    g.setLineDash([4, 3]); g.strokeStyle = cvar("--warn", "#A86400"); g.beginPath(); g.moveTo(L, YA(0.15)); g.lineTo(W - R, YA(0.15)); g.stroke(); g.setLineDash([]);
+    const bw = Math.max(2, Math.min(10, pw / cnt - 1));
+    g.fillStyle = vcol; g.globalAlpha = 0.4;                                     // gyro bars (log scale 0..1000 dps)
+    for (let k = i0; k <= i1; k++) { const e = evalP(st.pts[k]); if (e.dps == null) continue; const h = Math.min(1, Math.log10(1 + e.dps) / 3) * ph; g.fillRect(X(k) - bw / 2, T + ph - h, bw, h); }
+    g.globalAlpha = 1;
+    g.strokeStyle = tcol; g.lineWidth = 1.6; g.beginPath();                       // acc deviation line
+    for (let k = i0; k <= i1; k++) { const e = evalP(st.pts[k]), x = X(k), y = YA(Math.abs(e.mag - 1)); if (k === i0) g.moveTo(x, y); else g.lineTo(x, y); }
+    g.stroke();
+    for (let k = i0; k <= i1; k++) {
+      const e = evalP(st.pts[k]), x = X(k);
+      g.fillStyle = e.sat ? cvar("--bad", "#B8322A") : e.valid ? tcol : cvar("--warn", "#A86400");
+      g.beginPath(); g.arc(x, YA(Math.abs(e.mag - 1)), 2.4, 0, Math.PI * 2); g.fill();
+      if (e.motion) { g.fillStyle = cvar("--warn", "#A86400"); g.fillRect(x - 1, T, 2, 6); }
+    }
+    const sx = Math.round(X(i1)) + .5; g.strokeStyle = cvar("--ink", "#102328"); g.globalAlpha = .6; g.beginPath(); g.moveTo(sx, T); g.lineTo(sx, T + ph); g.stroke(); g.globalAlpha = 1;
+    g.fillStyle = muted; g.textAlign = "left"; g.textBaseline = "top";
+    g.fillText(new Date(st.pts[i0].ts).toLocaleTimeString([], { hour12: false }), L, H - B + 3);
+    g.textAlign = "right"; g.fillText(new Date(st.pts[i1].ts).toLocaleTimeString([], { hour12: false }), W - R, H - B + 3);
+    strip._map = { i0, i1, cnt, L, pw };
+  }
+
+  function readout() {
+    const i = shown();
+    if (i < 0) { info.textContent = "No IMU sample yet."; msg.textContent = ""; return; }
+    const p = st.pts[i], e = evalP(p), up = unit(e.a);
+    const pitch = Math.asin(Math.max(-1, Math.min(1, up[0]))) * 180 / Math.PI, roll = Math.atan2(up[1], up[2]) * 180 / Math.PI;
+    info.textContent = `${new Date(p.ts).toLocaleTimeString([], { hour12: false })} · seq ${p.seq ?? "–"} · |acc| ${e.mag.toFixed(2)} g · gyro ${e.dps == null ? "off" : Math.round(e.dps) + " dps"}` +
+      (e.valid ? ` · long axis ${pitch >= 0 ? "+" : ""}${pitch.toFixed(0)}° from horizon · roll ${roll.toFixed(0)}°` : " · tilt n/a") + (e.motion ? " · motion trigger" : "") + ` · ${i + 1}/${st.pts.length}`;
+    msg.textContent = st.sel == null ? "Live" : "Reviewing a stored sample";
+    btnLive.disabled = st.sel == null;
+  }
+
+  // ---------- loop ----------
+  let last = 0;
+  function loop(ts) {
+    requestAnimationFrame(loop);
+    if (!host || host.offsetParent === null) return;
+    const dt = Math.min(100, ts - last || 16); last = ts;
+    if (st.tween) {
+      const k = 1 - Math.exp(-dt / 140), c = st.cur, t = st.tgt;
+      st.cur = unit([c[0] + (t[0] - c[0]) * k, c[1] + (t[1] - c[1]) * k, c[2] + (t[2] - c[2]) * k]);
+      if (len([c[0] - t[0], c[1] - t[1], c[2] - t[2]]) < 1e-3) { st.cur = t; st.tween = false; }
+      st.dirty = true;
+    }
+    const i = shown(); if (i >= 0 && !evalP(st.pts[i]).valid) st.dirty = true;     // keep the shake alive while moving
+    if (st.dirty) { st.dirty = false; try { drawCapsule(); drawStrip(); readout(); } catch (e) { console.error("IMU panel:", e); } }
+  }
+
+  // ---------- UI ----------
+  function select(i) { st.sel = i >= st.pts.length - 1 ? null : Math.max(0, i); refreshTarget(); st.dirty = true; }
+  function mount(el) {
+    host = el;
+    if (!document.getElementById("imuCss")) {
+      const s = document.createElement("style"); s.id = "imuCss";
+      s.textContent = `.imu-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.82rem;color:var(--muted,#56696E);margin:0 0 8px}
+.imu-row select,.imu-row button{font:inherit;font-size:.82rem;padding:4px 9px;border-radius:6px;border:1px solid var(--line,#CFDBD9);background:var(--panel2,#F3F7F6);color:var(--ink,#102328)}
+.imu-row label{display:flex;align-items:center;gap:5px}
+#imuCv{display:block;width:100%;height:270px;background:var(--panel2,#F3F7F6);border-radius:10px;cursor:default}
+#imuStrip{display:block;width:100%;height:110px;margin-top:10px;cursor:crosshair;touch-action:pan-y}
+#imuInfo{font:.76rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted,#56696E);margin-top:6px;min-height:2.6em}
+.imu-note{font-size:.76rem;color:var(--muted,#56696E);margin:8px 0 0}`;
+      document.head.appendChild(s);
+    }
+    host.innerHTML = `<h2>IMU orientation <span class="act muted" id="imuMsg"></span></h2>
+<div class="imu-row"><label>Capsule long axis = sensor <select id="imuAxis"><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></label>
+<label><input type="checkbox" id="imuSign"> front camera at the − end</label>
+<button id="imuPrev" aria-label="Previous sample">◀</button><button id="imuNext" aria-label="Next sample">▶</button><button id="imuLive">Live</button></div>
+<canvas id="imuCv" aria-label="3D capsule orientation"></canvas>
+<div class="chart-title" style="margin-top:10px"><span>Pattern</span></div>
+<div class="legend"><span><i style="border-color:var(--blue)"></i>|acc| − 1 g</span><span><i class="blk" style="background:var(--violet)"></i>Gyro rate</span><span><i class="blk" style="background:var(--warn)"></i>Motion trigger</span></div>
+<canvas id="imuStrip" aria-label="IMU pattern, click to inspect a sample"></canvas>
+<div id="imuInfo"></div>
+<p class="imu-note">One sample per capture cycle. Tilt is valid only while |acc| is 0.85–1.15 g (resting). Yaw is not measurable. Dashed line = resting limit (0.15 g). White seam line on the capsule = roll marker. Set the long axis once with the capsule lying flat.</p>`;
+    cv = host.querySelector("#imuCv"); strip = host.querySelector("#imuStrip"); info = host.querySelector("#imuInfo");
+    selAxis = host.querySelector("#imuAxis"); chkSign = host.querySelector("#imuSign"); btnLive = host.querySelector("#imuLive");
+    btnPrev = host.querySelector("#imuPrev"); btnNext = host.querySelector("#imuNext"); msg = host.querySelector("#imuMsg");
+    selAxis.value = st.axis.long; chkSign.checked = st.axis.sign < 0;
+    const saveAxis = () => { st.axis = { long: selAxis.value, sign: chkSign.checked ? -1 : 1 }; try { localStorage.setItem("peek1_imu_axis", JSON.stringify(st.axis)); } catch { /* optional */ } st.haveUp = false; refreshTarget(); st.dirty = true; };
+    selAxis.onchange = saveAxis; chkSign.onchange = saveAxis;
+    btnLive.onclick = () => { st.sel = null; refreshTarget(); st.dirty = true; };
+    btnPrev.onclick = () => select(shown() - 1); btnNext.onclick = () => select(shown() + 1);
+    const pick = e => { const m = strip._map; if (!m) return; const r = strip.getBoundingClientRect(), x = Math.min(Math.max(e.clientX - r.left, m.L), m.L + m.pw);
+      select(m.i0 + Math.round(((x - m.L) / m.pw) * (m.cnt - 1))); };
+    strip.addEventListener("pointerdown", e => { pick(e); strip.setPointerCapture(e.pointerId); strip._drag = true; });
+    strip.addEventListener("pointermove", e => { if (strip._drag) pick(e); });
+    strip.addEventListener("pointerup", () => { strip._drag = false; });
+    if ("ResizeObserver" in window) { ro = new ResizeObserver(() => { st.dirty = true; }); ro.observe(host); }
+    window.addEventListener("resize", () => { st.dirty = true; });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { st.dirty = true; });
+    st.dirty = true; requestAnimationFrame(loop);
+  }
+  return { mount, push, reset, fromFrame, redraw: () => { st.dirty = true; }, _eval: evalP, _basis: basis };
+})();
+</script>
+<script>
 // Optional, proposed firmware feature: nRF notifies its measured connection RSSI (int8 dBm) here.
 const CHAR_RSSI_UUID = "6e400005-b5a3-f393-e0a9-e50e24dcca3e";
 // PROPOSED firmware diagnostics characteristic (v10). Not in firmware yet; ignored if absent.
@@ -1153,6 +1424,7 @@ function ingestFrame(rec, live) {
   const crc = crc16ccitt(frame);
   const sysd = parseSystemData(frame);
   S.lastSeq = seq; S.lastCrc = crc;
+  if (label !== "?") { const ip = PEEK_IMU.fromFrame(frame, t, label, seq); if (ip) PEEK_IMU.push(ip); }   // v27: IMU sample (frame bytes 15..19)
   if (seq != null && S.lossDet.length) {                 // v11: a frame cut off earlier and now received complete (STM32 resend)
     for (let i = S.lossDet.length - 1, n = 0; i >= 0 && n < 50; i--, n++) {
       const l = S.lossDet[i];
@@ -1376,8 +1648,11 @@ function renderLb() {
   $("lbImg").src = imgUrl(img); $("lbImg").alt = `${img.label === "F" ? "Front" : "Back"} seq ${img.seq}`;
   const d = new Date(img.ts);
   $("lbMeta").innerHTML = "";
+  const ip = PEEK_IMU.fromFrame(img.frame, img.ts, img.label, img.seq);            // v27: IMU sample + RX-window flag of this frame
+  const ipAcc = ip ? Math.hypot(ip.x, ip.y, ip.z) / 16 : null, ipGyr = ip && (ip.fl & 4) ? (ip.gyr * ip.gyr) / 16.4 : null;
   const items = [["Camera", img.label === "F" ? "Front" : "Back"], ["Seq", img.seq], ["Time", d.toLocaleDateString() + " " + tClock(img.ts)],
     ["Frame", img.bytes + " B"], ["JPEG", kb(img.jpeg.length) + (img.jstatus === "repaired" ? ` (header repaired: ${img.jfix})` : img.jstatus === "broken" ? " (header invalid)" : "")], ["CRC16", hex4(img.crc)], ["Battery", img.v != null ? img.v.toFixed(2) + " V" : "–"], ["Radio RSSI", img.rr != null ? img.rr + " dBm" : "–"],
+    ["Acc", ipAcc != null ? ipAcc.toFixed(2) + " g" : "–"], ["Gyro", ipGyr != null ? Math.round(ipGyr) + " dps" : "–"], ["RX window", img.frame.length > 14 && img.frame[14] === 1 ? "yes" : "–"],
     ["", `${lbIdx + 1} / ${lbList.length}`]];
   for (const [k, v] of items) { const s = document.createElement("span"); s.innerHTML = k ? `${k} <b></b>` : "<b></b>"; s.querySelector("b").textContent = v; $("lbMeta").appendChild(s); }
   $("lbPrev").disabled = lbIdx <= 0; $("lbNext").disabled = lbIdx >= lbList.length - 1;
@@ -1681,7 +1956,7 @@ ${sec("Pill battery", [["Start / end", d.bv.length ? `${d.bv[0].toFixed(2)} / ${
 ${sec("Integrity", [["Header repairs", `${S.repaired.toLocaleString()}${S.hdrFixed ? ` (${S.hdrFixed} transplant, verified)` : ""}`], ["Not displayable", String(d.notShown)],
   ["Corrupted camera byte", String(S.bad)], ["Overruns", String(S.overrun.length)]])}
 </div>
-<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v24 · created by Suriyaprakash Munuswamy</p>`;
+<p class="rp-meta" style="margin-top:12px">PEEK1 Monitor v27 · created by Suriyaprakash Munuswamy</p>`;
 }
 function renderReport() {
   if (!$("reportCard")) return;
@@ -1702,7 +1977,7 @@ function downloadReport() {
 .rp-flags li i{width:10px;height:10px;border-radius:50%;background:#2F7D4A;align-self:center}.rp-flags li.bad{background:#F8E4E2}.rp-flags li.bad i{background:#B8322A}.rp-flags li.warn{background:#FAEEDB}.rp-flags li.warn i{background:#A86400}
 .rp-flags small{display:block;color:#56696E}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}.rp-sec h3{font-size:1rem;margin:0 0 4px}.rp-sec dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0}
 .rp-sec dt{color:#56696E}.rp-sec dd{margin:0;text-align:right}`;
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v24, created by Suriyaprakash Munuswamy</p></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>PEEK1 session report</title><style>${css}</style></head><body><h1>PEEK1 session report</h1>${reportHTML()}<p class="rp-meta">Generated ${new Date().toLocaleString()} by PEEK1 Monitor v27, created by Suriyaprakash Munuswamy</p></body></html>`;
   download(new Blob([html], { type: "text/html" }), `peek1_report_${new Date().toISOString().replace(/[:.]/g, "-")}.html`);
 }
 
@@ -2111,7 +2386,7 @@ $("evMore").onclick = () => { EVV.limit += 500; renderTimeline(); };
 function applyTheme() {
   if (SET.theme === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = SET.theme;
   $("btnTheme").setAttribute("aria-label", `Theme: ${SET.theme}`); $("btnTheme").title = `Theme: ${SET.theme} (tap to change)`;
-  scheduleDraw();
+  scheduleDraw(); PEEK_IMU.redraw();
 }
 $("btnTheme").onclick = () => { SET.theme = { auto: "light", light: "dark", dark: "auto" }[SET.theme] || "auto"; saveSettings(); applyTheme(); toast(`Theme: ${SET.theme}`); };
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", scheduleDraw);
@@ -2254,7 +2529,7 @@ async function exportZip() {
   const frames = await getAll("frames"), events = await getAll("events");
   if (!frames.length && !events.length) { toast("Nothing to export yet"); return; }
   const enc = new TextEncoder(), used = new Set(), files = [];
-  const csv = ["timestamp_iso,seq,cam,bytes,crc16,battery_v,jpeg_bytes,jpeg_status"];
+  const csv = ["timestamp_iso,seq,cam,bytes,crc16,battery_v,jpeg_bytes,jpeg_status,rx_window,acc_x_g,acc_y_g,acc_z_g,gyro_dps,imu_flags"];
   for (const r of frames) {
     const f = new Uint8Array(r.frame);
     let stem = r.seq != null ? String(r.seq) : `unknown_${r.ts}`;
@@ -2265,7 +2540,9 @@ async function exportZip() {
     if (gj.jpeg) files.push({ name: `peek1_images/${stem}${gj.status === "repaired" ? "_repaired" : ""}.jpg`, data: gj.jpeg });
     const sd = parseSystemData(f);
     const cam = f.length >= 8 ? (f[7] === CAM_FRONT ? "F" : f[7] === CAM_BACK ? "B" : "?") : "short";
-    csv.push([new Date(r.ts).toISOString(), r.seq ?? "", cam, f.length, hex4(crc16ccitt(f)), sd ? sd.voltageV.toFixed(2) : "", gj.jpeg ? gj.jpeg.length : "", gj.status].join(","));
+    const ip = PEEK_IMU.fromFrame(f, r.ts, cam, r.seq);                                   // v27: IMU columns (empty when the frame has no IMU sample)
+    const imuCols = ip ? [(ip.x / 16).toFixed(3), (ip.y / 16).toFixed(3), (ip.z / 16).toFixed(3), (ip.fl & 4) ? ((ip.gyr * ip.gyr) / 16.4).toFixed(1) : "", "0x" + ip.fl.toString(16)] : ["", "", "", "", ""];
+    csv.push([new Date(r.ts).toISOString(), r.seq ?? "", cam, f.length, hex4(crc16ccitt(f)), sd ? sd.voltageV.toFixed(2) : "", gj.jpeg ? gj.jpeg.length : "", gj.status, f.length > 14 ? f[14] : "", ...imuCols].join(","));
   }
   const ev = ["timestamp_iso,type,detail"];
   for (const e of events) ev.push([new Date(e.ts).toISOString(), e.type,
@@ -2292,6 +2569,7 @@ async function exportZip() {
 function resetView() {
   for (const i of S.imgs) if (i.url) URL.revokeObjectURL(i.url);
   S = freshState(); lastRestored = {};
+  PEEK_IMU.reset();                                                            // v27: IMU panel starts empty with the session
   $("boxF").innerHTML = "<em>Waiting for first front image</em>"; $("boxB").innerHTML = "<em>Waiting for first back image</em>";
   $("fMeta").textContent = ""; $("bMeta").textContent = "";
 }
@@ -2495,7 +2773,7 @@ async function restore() {
 }
 
 // ---------------- control room tabs (v14) ----------------
-const CR_TABS = { trends: [".o-trends"], loss: [".o-loss"], report: [".o-report"], play: [".o-play"], gallery: [".o-gallery"],
+const CR_TABS = { trends: [".o-trends"], imu: [".o-imu"], loss: [".o-loss"], report: [".o-report"], play: [".o-play"], gallery: [".o-gallery"],
   events: [".o-events"], control: [".o-ctl"], setup: [".o-sim", ".o-session", ".o-settings", ".o-log"] };
 function crSelect(tab) {
   if (!CR_TABS[tab]) tab = "trends";
@@ -2503,7 +2781,7 @@ function crSelect(tab) {
   for (const [k, sels] of Object.entries(CR_TABS)) for (const sel of sels) q(sel).forEach(el => el.classList.toggle("tab-on", k === tab));
   q("#crTabs button").forEach(b => { const on = b.dataset.tab === tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
   if (tab === "setup") q(".o-settings, .o-log").forEach(d => { if (d.tagName === "DETAILS") d.open = true; });
-  scheduleDraw(); scheduleLoss(); if (tab === "play") pvBuild("keep");
+  scheduleDraw(); scheduleLoss(); if (tab === "play") pvBuild("keep"); if (tab === "imu") PEEK_IMU.redraw();
 }
 function crBadge(tab, n) { const b = document.querySelector(`#crTabs [data-tab="${tab}"]`); if (!b) return; if (n > 0) b.dataset.alert = n > 99 ? "99+" : String(n); else delete b.dataset.alert; }
 
@@ -2684,6 +2962,7 @@ const TABS = (() => {
   return { post };
 })();
 
+PEEK_IMU.mount($("imuCard"));                              // v27: IMU orientation panel (3D capsule + pattern strip)
 crSelect(SET.crTab || "trends"); simInit(); ctlInit();
 $("rpPrint").addEventListener("click", printReport);
 $("rpDl").addEventListener("click", downloadReport);
@@ -2703,5 +2982,6 @@ applyTheme(); bindSettings();
   if (!navigator.bluetooth) showSupportBanner();
 })();
 </script>
+<script src="peek1-live.js"></script>
 </body>
 </html>
